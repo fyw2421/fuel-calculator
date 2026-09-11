@@ -422,11 +422,81 @@
             return weeks[date.getDay()];
         }
 
+        var priceCacheKey = 'fuel_price_cache';
+        var scheduleCacheKey = 'fuel_schedule_cache';
+        var CACHE_TTL = 30 * 60 * 1000;
+
+        function loadCache(key) {
+            try {
+                var raw = localStorage.getItem(key);
+                if (raw) return JSON.parse(raw);
+            } catch (e) {}
+            return null;
+        }
+
+        function saveCache(key, data) {
+            try {
+                localStorage.setItem(key, JSON.stringify(data));
+            } catch (e) {}
+        }
+
+        function getCachedData(key, ttl) {
+            var cached = loadCache(key);
+            if (cached && cached.ts && (Date.now() - cached.ts) < ttl) {
+                return cached.data;
+            }
+            return null;
+        }
+
+        function setCachedData(key, data) {
+            saveCache(key, { data: data, ts: Date.now() });
+        }
+
+        function fetchWithCache(url, cacheKey, ttl) {
+            ttl = ttl || CACHE_TTL;
+            var cached = getCachedData(cacheKey, ttl);
+            if (cached) return Promise.resolve(cached);
+
+            var retryCount = 0;
+            var maxRetries = 3;
+            var baseDelay = 1000;
+
+            function attempt() {
+                return fetch(url)
+                    .then(function(res) {
+                        if (res.status === 429 && retryCount < maxRetries) {
+                            retryCount++;
+                            var delay = baseDelay * Math.pow(2, retryCount - 1);
+                            console.warn('API rate limited, retry ' + retryCount + ' after ' + delay + 'ms');
+                            return new Promise(function(resolve) {
+                                setTimeout(function() {
+                                    resolve(attempt());
+                                }, delay);
+                            });
+                        }
+                        return res.json().then(function(json) {
+                            setCachedData(cacheKey, json);
+                            return json;
+                        });
+                    })
+                    .catch(function(err) {
+                        console.error('Fetch error:', url, err);
+                        var stale = loadCache(cacheKey);
+                        if (stale && stale.data) {
+                            console.warn('Using stale cache for', url);
+                            return stale.data;
+                        }
+                        return Promise.reject(err);
+                    });
+            }
+
+            return attempt();
+        }
+
         function fetchOilPrice() {
-            fetch('https://v2.xxapi.cn/api/oilPrice')
-                .then(function(res) { return res.json(); })
+            fetchWithCache('https://v2.xxapi.cn/api/oilPrice', priceCacheKey)
                 .then(function(json) {
-                    if (json.code !== 200 || !json.data) return;
+                    if (!json || json.code !== 200 || !json.data) return null;
                     var list = json.data;
                     var hunan = null;
                     for (var i = 0; i < list.length; i++) {
@@ -435,6 +505,10 @@
                             break;
                         }
                     }
+                    if (!hunan) return null;
+                    return hunan;
+                })
+                .then(function(hunan) {
                     if (!hunan) return;
                     var p95 = parseFloat(hunan.n95);
                     var change = parseFloat(hunan.n95Change);
@@ -457,9 +531,9 @@
                     var dd = String(now.getDate()).padStart(2, '0');
                     document.getElementById('priceDate').textContent = mm + '-' + dd;
                     document.getElementById('priceWeek').textContent = getWeekday(now);
-                    return fetch('https://v1.apizero.cn/api/oil-price-forecast?action=forecast&province=%E6%B9%96%E5%8D%97');
+                    return fetchWithCache('https://v1.apizero.cn/api/oil-price-forecast?action=forecast&province=%E6%B9%96%E5%8D%97', priceCacheKey);
                 })
-                .then(function(res) { return res ? res.json() : null; })
+                .then(function(json) { return json; })
                 .then(function(json) {
                     if (!json || json.code !== 0 || !json.data) {
                         var diffEl = document.getElementById('priceNowDiff');
@@ -473,7 +547,7 @@
                     if (d.next_adjust_date) {
                         var parts = d.next_adjust_date.split('-');
                         if (parts.length >= 3) {
-                            var anchor = new Date(parts[0], parts[1] - 1, parts[2]);
+                            var anchor = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
                             anchor.setDate(anchor.getDate() + 1);
                             var nd = anchor;
                             var fullDate = '';
@@ -484,18 +558,19 @@
                             fullDate += String(nd.getMonth() + 1).padStart(2, '0') + '-' + String(nd.getDate()).padStart(2, '0');
                             document.getElementById('nextDate').innerHTML = parts[1] + '-' + parts[2] + ' 24时<br><span style="color:#dc2626;">' + fullDate + '</span>';
                             document.getElementById('nextWeek').textContent = getWeekday(nd);
-                            fetch('https://v1.apizero.cn/api/oil-price-forecast?action=schedule&year=' + nd.getFullYear())
-                                .then(function(res) { return res ? res.json() : null; })
+                            fetchWithCache('https://v1.apizero.cn/api/oil-price-forecast?action=schedule&year=' + nd.getFullYear(), scheduleCacheKey)
+                                .then(function(json) { return json; })
                                 .then(function(sj) {
                                     if (sj && sj.code === 0 && sj.data && sj.data.schedule) {
                                         var shifted = sj.data.schedule.map(function(item) {
-                                            var p = item.date.split('-');
-                                            var dt = new Date(p[0], p[1] - 1, p[2]);
+                                            var dateStr = item.date.split('T')[0];
+                                            var p = dateStr.split('-');
+                                            var dt = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
                                             dt.setDate(dt.getDate() + 1);
                                             return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
                                         });
                                         adjustSchedule = Array.from(new Set(adjustSchedule.concat(shifted)));
-                                        console.log('adjustSchedule loaded:', adjustSchedule.length);
+                                        console.log('adjustSchedule loaded:', adjustSchedule.length, adjustSchedule);
                                         if (document.getElementById('calMask').classList.contains('show')) {
                                             renderCalendar();
                                         }
@@ -782,14 +857,12 @@
             calMonth = today.getMonth();
             renderCalendar();
         });
-        on(document.getElementById('calMask'), 'click', function(e) {
-            if (e.target === this) this.classList.remove('show');
-        });
         on(document.getElementById('calDays'), 'click', function(e) {
             var span = e.target.closest('span[data-day]');
             if (span) selectDate(parseInt(span.getAttribute('data-day')));
         });
 
+        on(document.getElementById('priceDiff'), 'click', openDetail);
         updateTankCapacity();
         updateClearBtns();
         dateText.textContent = formatDate();
