@@ -423,6 +423,7 @@
         }
 
         var priceCacheKey = 'fuel_price_cache';
+        var forecastCacheKey = 'fuel_forecast_cache';
         var scheduleCacheKey = 'fuel_schedule_cache';
         var CACHE_TTL = 30 * 60 * 1000;
 
@@ -452,37 +453,63 @@
             saveCache(key, { data: data, ts: Date.now() });
         }
 
+        // apizero reports "too fast" as an HTTP 200 whose BODY carries code 4029,
+        // so the HTTP status alone cannot detect throttling.
+        function isThrottled(json) {
+            return !!json && typeof json === 'object' &&
+                (json.code === 4029 || json.code === 429);
+        }
+
+        // Success is code 200 (xxapi) or code 0 (apizero); anything else is an
+        // error body whose cached copy would poison later page loads.
+        function isErrorBody(json) {
+            return !!json && typeof json === 'object' &&
+                typeof json.code === 'number' && json.code !== 0 && json.code !== 200;
+        }
+
+        function isUsablePayload(json) {
+            return !!json && !isThrottled(json) && !isErrorBody(json);
+        }
+
         function fetchWithCache(url, cacheKey, ttl) {
             ttl = ttl || CACHE_TTL;
             var cached = getCachedData(cacheKey, ttl);
-            if (cached) return Promise.resolve(cached);
+            if (isUsablePayload(cached)) return Promise.resolve(cached);
 
             var retryCount = 0;
             var maxRetries = 3;
             var baseDelay = 1000;
 
+            function retryLater(body, reason) {
+                if (retryCount >= maxRetries) {
+                    throw new Error('throttled (' + reason + '), retries exhausted');
+                }
+                retryCount++;
+                var delay = baseDelay * Math.pow(2, retryCount - 1);
+                var retryAfter = body && body.data && Number(body.data.retry_after);
+                if (retryAfter > 0) delay = Math.max(delay, retryAfter * 1000);
+                console.warn('API throttled (' + reason + '), retry ' + retryCount + ' after ' + delay + 'ms');
+                return new Promise(function(resolve) {
+                    setTimeout(function() {
+                        resolve(attempt());
+                    }, delay);
+                });
+            }
+
             function attempt() {
                 return fetch(url)
                     .then(function(res) {
-                        if (res.status === 429 && retryCount < maxRetries) {
-                            retryCount++;
-                            var delay = baseDelay * Math.pow(2, retryCount - 1);
-                            console.warn('API rate limited, retry ' + retryCount + ' after ' + delay + 'ms');
-                            return new Promise(function(resolve) {
-                                setTimeout(function() {
-                                    resolve(attempt());
-                                }, delay);
-                            });
-                        }
+                        if (res.status === 429) return retryLater(null, 'HTTP 429');
                         return res.json().then(function(json) {
-                            setCachedData(cacheKey, json);
+                            if (isThrottled(json)) return retryLater(json, 'code ' + json.code);
+                            if (!isErrorBody(json)) setCachedData(cacheKey, json);
                             return json;
                         });
                     })
                     .catch(function(err) {
                         console.error('Fetch error:', url, err);
                         var stale = loadCache(cacheKey);
-                        if (stale && stale.data) {
+                        if (stale && isUsablePayload(stale.data)) {
                             console.warn('Using stale cache for', url);
                             return stale.data;
                         }
@@ -496,14 +523,26 @@
         function fetchOilPrice() {
             fetchWithCache('https://v2.xxapi.cn/api/oilPrice', priceCacheKey)
                 .then(function(json) {
-                    if (!json || json.code !== 200 || !json.data) return null;
-                    var list = json.data;
+                    if (!json) return null;
+                    // Shape is {code: 200, data: [...provinces...]}. Tolerate a
+                    // nested data.data wrapper in case upstream changes.
+                    var list = Array.isArray(json.data) ? json.data
+                        : (json.data && Array.isArray(json.data.data) ? json.data.data : null);
+                    var apiCode = typeof json.code === 'number' ? json.code : (json.data && json.data.code);
+                    if (!list || apiCode !== 200) {
+                        console.warn('油价接口返回结构异常:', json);
+                        return null;
+                    }
                     var hunan = null;
                     for (var i = 0; i < list.length; i++) {
-                        if (list[i].regionName && list[i].regionName.indexOf('湖南') >= 0) {
+                        var name = list[i].regionName || list[i].province || list[i].name || '';
+                        if (name && name.indexOf('湖南') >= 0) {
                             hunan = list[i];
                             break;
                         }
+                    }
+                    if (!hunan && list.length > 0) {
+                        console.warn('未找到湖南，首个元素字段:', Object.keys(list[0]));
                     }
                     if (!hunan) return null;
                     return hunan;
@@ -531,16 +570,11 @@
                     var dd = String(now.getDate()).padStart(2, '0');
                     document.getElementById('priceDate').textContent = mm + '-' + dd;
                     document.getElementById('priceWeek').textContent = getWeekday(now);
-                    return fetchWithCache('https://v1.apizero.cn/api/oil-price-forecast?action=forecast&province=%E6%B9%96%E5%8D%97', priceCacheKey);
+                    return fetchWithCache('https://v1.apizero.cn/api/oil-price-forecast?action=forecast&province=%E6%B9%96%E5%8D%97', forecastCacheKey);
                 })
                 .then(function(json) { return json; })
                 .then(function(json) {
                     if (!json || json.code !== 0 || !json.data) {
-                        var diffEl = document.getElementById('priceNowDiff');
-                        if (diffEl) {
-                            diffEl.textContent = '加载失败';
-                            diffEl.className = 'price-diff';
-                        }
                         return;
                     }
                     var d = json.data;
@@ -582,22 +616,24 @@
                         }
                     }
                     if (d.prediction) {
-                        var change = d.prediction.estimated_change_per_liter;
-                        var dir = d.prediction.direction;
+                        var change = parseFloat(d.prediction.estimated_change_per_liter);
+                        var dir = d.prediction.direction || '';
                         var diffEl = document.getElementById('priceDiff');
-                        if (change !== null && !isNaN(change)) {
+                        // estimated_change_per_liter is an unsigned magnitude
+                        // (e.g. 0.966 for a 下跌 day), so the sign has to come
+                        // from `direction` rather than from the number itself.
+                        if (/下跌|下调/.test(dir)) change = -Math.abs(change);
+                        else if (/上涨|上调/.test(dir)) change = Math.abs(change);
+                        if (!isNaN(change)) {
                             var priceNowText = document.getElementById('priceNow').textContent.trim();
                             if (priceNowText === '--' || isNaN(parseFloat(priceNowText))) return;
                             var priceNow = parseFloat(priceNowText);
                             var priceNext = priceNow + change;
                             document.getElementById('priceNext').textContent = priceNext.toFixed(2);
-                            if (change > 0) {
-                                diffEl.innerHTML = '+' + change.toFixed(2) + ' <span style="font-size:11px;font-weight:500;color:#64748b;">详情</span>';
-                                diffEl.className = 'price-diff clickable up';
-                            } else {
-                                diffEl.innerHTML = change.toFixed(2) + ' <span style="font-size:11px;font-weight:500;color:#64748b;">详情</span>';
-                                diffEl.className = 'price-diff clickable down';
-                            }
+                            var sign = change > 0 ? ' up' : (change < 0 ? ' down' : '');
+                            diffEl.innerHTML = (change > 0 ? '+' : '') + change.toFixed(2) +
+                                ' <span style="font-size:11px;font-weight:500;color:#64748b;">详情</span>';
+                            diffEl.className = 'price-diff clickable' + sign;
                         } else {
                             document.getElementById('priceNext').textContent = '--';
                             diffEl.textContent = '';
@@ -608,8 +644,11 @@
                 })
                 .catch(function(err) {
                     console.error('油价获取失败:', err);
+                    var nowEl = document.getElementById('priceNow');
                     var diffEl = document.getElementById('priceNowDiff');
-                    if (diffEl) {
+                    // Only surface the failure if today's price never arrived --
+                    // a failed forecast should not blank out a valid price.
+                    if (diffEl && nowEl && nowEl.textContent.trim() === '--') {
                         diffEl.textContent = '加载失败';
                         diffEl.className = 'price-diff';
                     }

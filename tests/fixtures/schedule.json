@@ -1,0 +1,199 @@
+{
+    "code": 0,
+    "msg": "成功",
+    "data": {
+        "year": 2026,
+        "total_adjustments": 25,
+        "next_adjust_date": "2026-09-11",
+        "days_remaining": 0,
+        "schedule": [
+            {
+                "date": "2026-01-06",
+                "effective": "24:00",
+                "status": "搁浅",
+                "outcome": "搁浅",
+                "summary": "不作调整（幅度不足 50 元/吨）",
+                "gasoline_yuan_per_ton": 0,
+                "diesel_yuan_per_ton": 0
+            },
+            {
+                "date": "2026-01-20",
+                "effective": "24:00",
+                "status": "上调",
+                "outcome": "上调",
+                "summary": "汽油每吨上调85元，柴油每吨上调85元",
+                "gasoline_yuan_per_ton": 85,
+                "diesel_yuan_per_ton": 85
+            },
+            {
+                "date": "2026-02-03",
+                "effective": "24:00",
+                "status": "上调",
+                "outcome": "上调",
+                "summary": "汽油每吨上调205元，柴油每吨上调195元",
+                "gasoline_yuan_per_ton": 205,
+                "diesel_yuan_per_ton": 195
+            },
+            {
+                "date": "2026-02-24",
+                "effective": "24:00",
+                "status": "上调",
+                "outcome": "上调",
+                "summary": "汽油每吨上调175元，柴油每吨上调170元",
+                "gasoline_yuan_per_ton": 175,
+                "diesel_yuan_per_ton": 170
+            },
+            {
+                "date": "2026-03-09",
+                "effective": "24:00",
+                "status": "上调",
+                "outcome": "上调",
+                "summary": "汽油每吨上调695元，柴油每吨上调670元",
+                "gasoline_yuan_per_ton": 695,
+                "diesel_yuan_per_ton": 670
+            },
+            {
+                "date": "2026-03-23",
+                "effective": "24:00",
+                "status": "上调",
+                "outcome": "上调",
+                "summary": "汽油每吨上调1160元，柴油每吨上调1115元",
+                "gasoline_yuan_per_ton": 1160,
+                "diesel_yuan_per_ton": 1115
+            },
+            {
+                "date": "2026-04-07",
+                "effective": "24:00",
+                "status": "上调",
+                "outcome": "上调",
+                "summary": "汽油每吨上调420元，柴油每吨上调400元",
+                "gasoline_yuan_per_ton": 420,
+                "diesel_yuan_per_ton": 400
+            },
+            {
+                "date": "2026-04-21",
+                "effective": "24:00",
+                "status": "下调",
+                "outcome": "下调",
+                "summary": "汽油每吨下调555元，柴油每吨下调530元",
+                "gasoline_yuan_per_ton": -555,
+                "diesel_yuan_per_ton": -530
+            },
+            {
+                "date": "2026-05-08",
+                "effective": "24:00",
+                "status": "上调",
+                "outcome": "上调",
+                "summary": "汽油每吨上调320元，柴油每吨上调310元",
+                "gasoline_yuan_per_ton": 320,
+                "diesel_yuan_per_ton": 310
+            },
+            {
+                "date": "2026-05-21",
+                "effective": "24:00",
+                "status": "上调",
+                "outcome": "上调",
+                "summary": "汽油每吨上调75元，柴油每吨上调70元",
+                "gasoline_yuan_per_ton": 75,
+                "diesel_yuan_per_ton": 70
+            },
+            {
+                "date": "2026-06-04",
+                "effective": "24:00",
+                "status": "下调",
+                "outcome": "下调",
+                "summary": "汽油每吨下调525元，柴油每吨下调505元",
+                "gasoline_yuan_per_ton": -525,
+                "diesel_yuan_per_ton": -505
+            },
+            {
+                "date": "2026-06-18",
+                "effective": "24:00",
+                "status": "下调",
+                "outcome": "下调",
+                "summary": "汽油每吨下调515元，柴油每吨下调495元",
+                "gasoline_yuan_per_ton": -515,
+                "diesel_yuan_per_ton": -495
+            },
+            {
+                "date": "2026-07-03",
+                "effective": "24:00",
+                "status": "下调",
+                "outcome": "下调",
+                "summary": "汽油每吨下调950元，柴油每吨下调915元",
+                "gasoline_yuan_per_ton": -950,
+                "diesel_yuan_per_ton": -915
+            },
+            {
+                "date": "2026-07-17",
+                "effective": "24:00",
+                "status": "上调",
+                "outcome": "上调",
+                "summary": "汽油每吨上调300元，柴油每吨上调290元",
+                "gasoline_yuan_per_ton": 300,
+                "diesel_yuan_per_ton": 290
+            },
+            {
+                "date": "2026-07-31",
+                "effective": "24:00",
+                "status": "上调",
+                "outcome": "上调",
+                "summary": "汽油每吨上调685元，柴油每吨上调655元",
+                "gasoline_yuan_per_ton": 685,
+                "diesel_yuan_per_ton": 655
+            },
+            {
+                "date": "2026-08-14",
+                "effective": "24:00",
+                "status": "已过"
+            },
+            {
+                "date": "2026-08-28",
+                "effective": "24:00",
+                "status": "已过"
+            },
+            {
+                "date": "2026-09-11",
+                "effective": "24:00",
+                "status": "今日"
+            },
+            {
+                "date": "2026-09-24",
+                "effective": "24:00",
+                "status": "待定"
+            },
+            {
+                "date": "2026-10-15",
+                "effective": "24:00",
+                "status": "待定"
+            },
+            {
+                "date": "2026-10-29",
+                "effective": "24:00",
+                "status": "待定"
+            },
+            {
+                "date": "2026-11-12",
+                "effective": "24:00",
+                "status": "待定"
+            },
+            {
+                "date": "2026-11-26",
+                "effective": "24:00",
+                "status": "待定"
+            },
+            {
+                "date": "2026-12-10",
+                "effective": "24:00",
+                "status": "待定"
+            },
+            {
+                "date": "2026-12-24",
+                "effective": "24:00",
+                "status": "待定"
+            }
+        ]
+    },
+    "tips": "极数本源 · https://apizero.cn",
+    "request_id": "mtwrgww20660a741"
+}
