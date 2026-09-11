@@ -1,0 +1,815 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>汽油百分比计算</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, "PingFang SC", "Microsoft YaHei", sans-serif;
+            background: #f0f4f5;
+            color: #0f172a;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 40px 20px;
+        }
+
+        .card {
+            background: #fff;
+            border: 1px solid #d1d5db;
+            border-radius: 20px;
+            padding: 32px;
+            width: 100%;
+            max-width: 440px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 6px 24px rgba(0,0,0,0.06);
+        }
+
+        .header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 28px; }
+        .logo { display: flex; align-items: center; gap: 8px; }
+        .logo-icon {
+            width: 30px; height: 30px; background: #0d9488; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; color: #fff; font-weight: 700;
+        }
+        .logo-text { font-size: 14px; font-weight: 600; white-space: nowrap; }
+        .header-actions { display: flex; align-items: center; gap: 6px; }
+
+        .tank-edit {
+            display: flex; align-items: center; gap: 4px;
+            border: 1.5px solid #d1d5db; border-radius: 8px; padding: 5px 8px;
+            background: #fff; cursor: pointer;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .tank-edit:hover { border-color: #0d9488; background: #f0fdfa; }
+        .tank-edit:active { background: #e6fffa; }
+        .tank-icon { font-size: 14px; line-height: 1; }
+        .tank-input {
+            width: 30px; border: none; background: transparent; text-align: center;
+            font-family: monospace; font-size: 13px; font-weight: 700; color: #0f172a;
+            outline: none;
+        }
+        .tank-unit {
+            font-family: monospace; font-size: 11px; color: #64748b; font-weight: 500;
+        }
+
+        .date-btn {
+            display: flex; align-items: center; gap: 4px;
+            border: 1.5px solid #d1d5db; border-radius: 8px; padding: 5px 8px;
+            background: #fff; cursor: pointer; white-space: nowrap;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .date-btn:hover { border-color: #0d9488; background: #f0fdfa; }
+        .date-btn:active { background: #e6fffa; }
+        .date-icon { font-size: 14px; line-height: 1; }
+        .date-text {
+            font-family: monospace; font-size: 12px; font-weight: 600; color: #334155;
+        }
+
+        .mode-bar {
+            display: flex; background: #e5e7eb; border-radius: 10px;
+            padding: 4px; margin-bottom: 16px; gap: 4px;
+        }
+        .mode-btn {
+            flex: 1; padding: 10px; border: none; border-radius: 8px;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            color: #64748b; background: transparent; font-family: inherit;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .mode-btn.active { background: #fff; color: #0f172a; box-shadow: 0 1px 3px rgba(0,0,0,0.08); }
+
+        .price-table {
+            background: #f8fafc; border: 1px solid #d1d5db; border-radius: 12px;
+            padding: 10px 14px; margin-bottom: 16px; overflow: hidden;
+        }
+        .price-table-title {
+            font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
+            color: #64748b; margin-bottom: 8px; font-weight: 500;
+        }
+        .price-grid {
+            display: grid;
+            grid-template-columns: 3em 80px 48px auto auto;
+            align-items: center;
+            gap: 0;
+        }
+        .price-grid > span {
+            padding: 6px 0;
+        }
+        .price-row {
+            display: contents;
+            font-size: 13px;
+        }
+        .price-label { color: #64748b; font-weight: 500; white-space: nowrap; }
+        .price-date { color: #0f172a; font-family: monospace; font-weight: 600; font-size: 12px; line-height: 1.3; }
+        .price-week { color: #64748b; font-size: 12px; }
+        .price-val {
+            font-family: monospace; font-size: 13px; font-weight: 700; color: #0f172a;
+        }
+        .price-val.clickable {
+            background: #fff; border: 1px solid #d1d5db; border-radius: 4px;
+            padding: 1px 4px; cursor: pointer; text-align: left;
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .price-val.clickable:hover { border-color: #0d9488; background: #f0fdfa; }
+        .price-val.clickable:active { background: #e6fffa; }
+        .price-diff {
+            font-family: monospace; font-size: 13px; font-weight: 600;
+            white-space: nowrap; color: #0f172a;
+        }
+        .price-diff.up { color: #dc2626; }
+        .price-diff.down { color: #16a34a; }
+        .price-diff.clickable {
+            background: #fff; border: 1px solid #d1d5db; border-radius: 4px;
+            padding: 1px 4px; cursor: pointer; text-align: left;
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+            transition: border-color 0.15s, background 0.15s;
+        }
+        .price-diff.clickable:hover { border-color: #0d9488; background: #f0fdfa; }
+        .price-diff.clickable:active { background: #e6fffa; }
+
+        .inputs {
+            display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px;
+        }
+        .quick-row {
+            display: flex; gap: 8px; margin-top: 8px;
+        }
+        .quick-btn {
+            flex: 1; padding: 6px 0; border: 1.5px solid #e2e8f0; border-radius: 8px;
+            background: #fff; color: #475569; font-size: 13px; font-weight: 600;
+            font-family: monospace; cursor: pointer; text-align: center;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+            transition: border-color 0.15s, background 0.15s, color 0.15s;
+        }
+        .quick-btn:hover { border-color: #0d9488; color: #0d9488; background: #f0fdfa; }
+        .quick-btn:active { background: #e6fffa; }
+        .input-group {
+            position: relative;
+            border: 1px solid #d1d5db; border-radius: 12px; padding: 18px 16px 12px;
+            transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+            display: flex; flex-direction: column;
+        }
+        .input-group:nth-child(1) { background: #f0fdfa; border-color: #99f6e4; }
+        .input-group:nth-child(2) { background: #fffbeb; border-color: #fde68a; }
+        .input-group:nth-child(1):focus-within { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
+        .input-group:nth-child(2):focus-within { border-color: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,0.12); }
+        .clear-btn {
+            position: absolute; top: 8px; right: 8px;
+            width: 20px; height: 20px; border: none; border-radius: 50%;
+            background: #d1d5db; color: #64748b; font-size: 12px; line-height: 20px;
+            text-align: center; cursor: pointer; padding: 0; display: none;
+            font-family: inherit; transition: background 0.15s, color 0.15s;
+            -webkit-tap-highlight-color: transparent;
+            touch-action: manipulation;
+        }
+        .clear-btn:hover { background: #94a3b8; color: #fff; }
+        .input-label {
+            font-size: 12px; text-transform: uppercase; letter-spacing: 0.6px;
+            color: #64748b; margin-bottom: 8px; display: block; font-weight: 500;
+        }
+        .input-wrap { display: flex; align-items: baseline; gap: 6px; }
+        .input-wrap input {
+            flex: 1; background: transparent; border: none; color: #0f172a;
+            font-family: monospace; font-size: 20px; font-weight: 700;
+            outline: none; letter-spacing: -0.5px; min-width: 0; width: 100%;
+        }
+        .input-wrap input::placeholder { color: #94a3b8; font-weight: 400; font-size: 16px; }
+        .input-affix { font-family: monospace; font-size: 13px; color: #64748b; white-space: nowrap; flex-shrink: 0; }
+        .use-price-btn {
+            margin-top: 6px; padding: 4px 0; border: 1.5px solid #e2e8f0; border-radius: 8px;
+            background: #fff; color: #475569; font-size: 13px; font-weight: 600;
+            cursor: pointer; text-align: center; flex: 1;
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+            transition: border-color 0.15s, color 0.15s, background 0.15s;
+        }
+        .use-price-btn:hover { border-color: #0d9488; color: #0d9488; background: #f0fdfa; }
+        .use-price-btn:active { background: #e6fffa; }
+
+        .gauge-section {
+            background: #fff; border: 1px solid #d1d5db; border-radius: 16px;
+            padding: 28px 24px; margin-bottom: 20px; text-align: center;
+        }
+        .gauge-label {
+            font-family: monospace; font-size: 11px; text-transform: uppercase;
+            letter-spacing: 2.5px; color: #94a3b8; margin-bottom: 24px;
+        }
+        .gauge-liters {
+            font-family: monospace; font-size: 14px; color: #475569;
+            margin-top: 12px; min-height: 20px;
+        }
+        .gauge-percent {
+            font-family: monospace; font-size: 56px; font-weight: 700; line-height: 1;
+            letter-spacing: -3px; color: #0f766e; margin-top: 16px;
+        }
+        .gauge-percent.warning { color: #dc2626; }
+        .gauge-percent.idle { color: #94a3b8; }
+        .gauge-percent.mode-percent { color: #0f172a; font-size: 40px; }
+        .gauge-percent.mode-percent.warning { color: #dc2626; }
+        .gauge-unit { font-family: monospace; font-size: 13px; color: #64748b; margin-top: 8px; }
+        .gauge-detail {
+            margin-top: 16px; padding-top: 14px; border-top: 1px solid #d1d5db;
+            font-size: 14px; color: #475569; display: none; line-height: 1.7;
+        }
+        .gauge-detail.show { display: block; }
+        .gauge-detail strong { color: #0f172a; font-weight: 600; }
+
+        .footer { text-align: center; font-size: 13px; color: #94a3b8; margin-top: 20px; }
+
+        .cal-mask {
+            display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.4); z-index: 999;
+        }
+        .cal-mask.show { display: flex; justify-content: center; align-items: center; }
+        .cal-box {
+            background: #fff; border-radius: 16px; width: 320px; padding: 20px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.18);
+            margin: auto;
+        }
+        .cal-head {
+            display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;
+        }
+        .cal-title { font-size: 15px; font-weight: 700; }
+        .cal-nav {
+            width: 28px; height: 28px; border: none; border-radius: 50%;
+            background: #f1f5f9; color: #475569; font-size: 14px; font-weight: 700;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+        }
+        .cal-nav:active { background: #e2e8f0; }
+        .cal-weeks {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+            margin-bottom: 4px;
+        }
+        .cal-weeks span {
+            text-align: center; font-size: 11px; color: #94a3b8; font-weight: 600;
+            padding: 4px 0;
+        }
+        .cal-days {
+            display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px;
+        }
+        .cal-days span {
+            text-align: center; font-size: 13px; padding: 8px 0; border-radius: 8px;
+            cursor: pointer; color: #334155;
+        }
+        .cal-days span.empty { cursor: default; }
+        .cal-days span.today { background: #0d9488; color: #fff; font-weight: 700; }
+        .cal-days span.other { color: #cbd5e1; }
+        .cal-days span.adjust { background: #f59e0b; color: #fff; font-weight: 700; padding: 4px 0; font-size: 12px; }
+        .cal-days span.adjust::after { content: '调价'; display: block; font-size: 9px; font-weight: 500; opacity: 0.9; line-height: 1; margin-top: 1px; }
+        .cal-days span.today.adjust { background: #0d9488; padding: 4px 0; }
+        .cal-days span.selected { outline: 2px solid #0f172a; }
+        .cal-close {
+            flex: 1; margin-top: 12px; padding: 8px; border: none; border-radius: 8px;
+            background: #f1f5f9; color: #475569; font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+        }
+        .cal-today {
+            flex: 1; margin-top: 12px; padding: 8px; border: none; border-radius: 8px;
+            background: #0d9488; color: #fff; font-size: 13px; font-weight: 600;
+            cursor: pointer; font-family: inherit;
+            -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+        }
+        .cal-today:active { background: #0f766e; }
+        .cal-actions { display: flex; gap: 8px; }
+
+        @media (max-width: 400px) {
+            body { padding: 16px 10px; }
+            .card { padding: 16px 12px; border-radius: 16px; }
+            .mode-bar { flex-direction: column; gap: 6px; }
+            .inputs { grid-template-columns: 1fr; }
+            .gauge-percent { font-size: 42px; }
+            .gauge-percent.mode-percent { font-size: 32px; }
+            .price-grid { grid-template-columns: 2.5em 60px 38px auto auto; }
+            .price-label { font-size: 11px; }
+            .price-date { font-size: 10px; }
+            .price-week { font-size: 10px; }
+            .price-val { font-size: 11px; }
+            .price-diff.clickable { font-size: 11px; }
+        }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <div class="header">
+            <div class="logo">
+                <div class="logo-icon">⛽</div>
+                <div class="logo-text">汽油百分比计算</div>
+            </div>
+            <div class="header-actions">
+                <div class="tank-edit">
+                    <span class="tank-icon">🛢</span>
+                    <input type="text" inputmode="decimal" id="tankCapacity" value="68" class="tank-input">
+                    <span class="tank-unit">L</span>
+                </div>
+                <div class="date-btn" id="dateBadge">
+                    <span class="date-icon">📅</span>
+                    <span class="date-text"></span>
+                </div>
+            </div>
+        </div>
+
+        <div class="mode-bar">
+            <button type="button" class="mode-btn active" id="modeAmount">输入金额 → 算百分比</button>
+            <button type="button" class="mode-btn" id="modePercent">输入百分比 → 算金额</button>
+        </div>
+
+        <div class="price-table">
+            <div class="price-table-title">长沙 · 95#汽油</div>
+            <div class="price-grid">
+                <span class="price-label">今日&nbsp;</span>
+                <span class="price-date" id="priceDate"></span>
+                <span class="price-week" id="priceWeek"></span>
+                <span class="price-val" id="priceNow">--</span>
+                <span class="price-diff" id="priceNowDiff"></span>
+                <span class="price-label">下轮</span>
+                <span class="price-date" id="nextDate">--</span>
+                <span class="price-week" id="nextWeek"></span>
+                <span class="price-val next" id="priceNext">--</span>
+                <span class="price-diff clickable" id="priceDiff"></span>
+            </div>
+        </div>
+
+        <div class="inputs">
+            <div class="input-group">
+                <button type="button" class="clear-btn" id="clearOilPrice">×</button>
+                <label class="input-label">油价</label>
+                <div class="input-wrap">
+                     <input type="text" inputmode="decimal" id="oilPrice" placeholder="0.00">
+                    <span class="input-affix">元/升</span>
+                </div>
+                <button type="button" class="use-price-btn" id="usePriceBtn">当前油价</button>
+            </div>
+            <div class="input-group">
+                <button type="button" class="clear-btn" id="clearFuelValue">×</button>
+                <label class="input-label" id="fuelLabel">加油金额</label>
+                <div class="input-wrap">
+                     <input type="text" inputmode="decimal" id="fuelValue" placeholder="0.00">
+                    <span class="input-affix" id="fuelAffix">元</span>
+                </div>
+                <div class="quick-row" id="quickRow">
+                    <button type="button" class="quick-btn" data-val="230">230元</button>
+                    <button type="button" class="quick-btn" data-val="360">360元</button>
+                </div>
+                <div class="quick-row percent-row" id="percentRow" style="display:none;">
+                    <button type="button" class="quick-btn" data-percent="40">40%</button>
+                    <button type="button" class="quick-btn" data-percent="60">60%</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="gauge-section" id="gaugeSection">
+            <div class="gauge-label">Fuel Gauge</div>
+            <div class="gauge-liters" id="gaugeLiters"></div>
+            <div class="gauge-percent idle" id="gaugePercent">--</div>
+            <div class="gauge-unit">of 68L tank</div>
+            <div class="gauge-detail" id="gaugeDetail"></div>
+        </div>
+
+        <div class="footer">以加油站实际挂牌价为准</div>
+    </div>
+
+    <div class="cal-mask" id="calMask">
+        <div class="cal-box">
+            <div class="cal-head">
+                <button type="button" class="cal-nav" id="calPrev">‹</button>
+                <span class="cal-title" id="calTitle"></span>
+                <button type="button" class="cal-nav" id="calNext">›</button>
+            </div>
+            <div class="cal-weeks">
+                <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
+            </div>
+            <div class="cal-days" id="calDays"></div>
+            <div class="cal-actions">
+                <button type="button" class="cal-today" id="calToday">今天</button>
+                <button type="button" class="cal-close" id="calClose">关闭</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        var TANK_CAPACITY = 68;
+        var mode = 'amount';
+        var gaugeSection = document.getElementById('gaugeSection');
+        var gaugePercent = document.getElementById('gaugePercent');
+        var gaugeDetail = document.getElementById('gaugeDetail');
+        var gaugeLiters = document.getElementById('gaugeLiters');
+        var tankInput = document.getElementById('tankCapacity');
+        var gaugeUnit = document.querySelector('.gauge-unit');
+        var dateBadge = document.getElementById('dateBadge');
+        var dateText = dateBadge.querySelector('.date-text');
+        var adjustSchedule = [];
+        var selectedDate = null;
+
+        function formatDate() {
+            var now = new Date();
+            var m = (now.getMonth() + 1);
+            var d = now.getDate();
+            return m + '月' + d + '日';
+        }
+
+        function getWeekday(date) {
+            var weeks = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            return weeks[date.getDay()];
+        }
+
+        function fetchOilPrice() {
+            fetch('https://v2.xxapi.cn/api/oilPrice')
+                .then(function(res) { return res.json(); })
+                .then(function(json) {
+                    if (json.code !== 200 || !json.data) return;
+                    var list = json.data;
+                    var hunan = null;
+                    for (var i = 0; i < list.length; i++) {
+                        if (list[i].regionName && list[i].regionName.indexOf('湖南') >= 0) {
+                            hunan = list[i];
+                            break;
+                        }
+                    }
+                    if (!hunan) return;
+                    var p95 = parseFloat(hunan.n95);
+                    var change = parseFloat(hunan.n95Change);
+                    if (p95) {
+                        document.getElementById('priceNow').textContent = p95.toFixed(2);
+                        document.getElementById('oilPrice').value = p95.toFixed(2);
+                    }
+                    if (change !== null && !isNaN(change)) {
+                        var diffEl = document.getElementById('priceNowDiff');
+                        if (change > 0) {
+                            diffEl.textContent = '+' + change.toFixed(2);
+                            diffEl.className = 'price-diff up';
+                        } else {
+                            diffEl.textContent = change.toFixed(2);
+                            diffEl.className = 'price-diff down';
+                        }
+                    }
+                    var now = new Date();
+                    var mm = String(now.getMonth() + 1).padStart(2, '0');
+                    var dd = String(now.getDate()).padStart(2, '0');
+                    document.getElementById('priceDate').textContent = mm + '-' + dd;
+                    document.getElementById('priceWeek').textContent = getWeekday(now);
+                    return fetch('https://v1.apizero.cn/api/oil-price-forecast?action=forecast&province=%E6%B9%96%E5%8D%97');
+                })
+                .then(function(res) { return res ? res.json() : null; })
+                .then(function(json) {
+                    if (!json || json.code !== 0 || !json.data) {
+                        var diffEl = document.getElementById('priceNowDiff');
+                        if (diffEl) {
+                            diffEl.textContent = '加载失败';
+                            diffEl.className = 'price-diff';
+                        }
+                        return;
+                    }
+                    var d = json.data;
+                    if (d.next_adjust_date) {
+                        var parts = d.next_adjust_date.split('-');
+                        if (parts.length >= 3) {
+                            var anchor = new Date(parts[0], parts[1] - 1, parts[2]);
+                            anchor.setDate(anchor.getDate() + 1);
+                            var nd = anchor;
+                            var fullDate = '';
+                            var curYear = new Date().getFullYear();
+                            if (nd.getFullYear() !== curYear) {
+                                fullDate = nd.getFullYear() + '-';
+                            }
+                            fullDate += String(nd.getMonth() + 1).padStart(2, '0') + '-' + String(nd.getDate()).padStart(2, '0');
+                            document.getElementById('nextDate').innerHTML = parts[1] + '-' + parts[2] + ' 24时<br><span style="color:#dc2626;">' + fullDate + '</span>';
+                            document.getElementById('nextWeek').textContent = getWeekday(nd);
+                            fetch('https://v1.apizero.cn/api/oil-price-forecast?action=schedule&year=' + nd.getFullYear())
+                                .then(function(res) { return res ? res.json() : null; })
+                                .then(function(sj) {
+                                    if (sj && sj.code === 0 && sj.data && sj.data.schedule) {
+                                        var shifted = sj.data.schedule.map(function(item) {
+                                            var p = item.date.split('-');
+                                            var dt = new Date(p[0], p[1] - 1, p[2]);
+                                            dt.setDate(dt.getDate() + 1);
+                                            return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
+                                        });
+                                        adjustSchedule = Array.from(new Set(adjustSchedule.concat(shifted)));
+                                        console.log('adjustSchedule loaded:', adjustSchedule.length);
+                                        if (document.getElementById('calMask').classList.contains('show')) {
+                                            renderCalendar();
+                                        }
+                                    } else {
+                                        console.warn('schedule api unexpected', sj);
+                                    }
+                                })
+                                .catch(function(err) { console.error('调价日历获取失败:', err); });
+                        }
+                    }
+                    if (d.prediction) {
+                        var change = d.prediction.estimated_change_per_liter;
+                        var dir = d.prediction.direction;
+                        var diffEl = document.getElementById('priceDiff');
+                        if (change !== null && !isNaN(change)) {
+                            var priceNowText = document.getElementById('priceNow').textContent.trim();
+                            if (priceNowText === '--' || isNaN(parseFloat(priceNowText))) return;
+                            var priceNow = parseFloat(priceNowText);
+                            var priceNext = priceNow + change;
+                            document.getElementById('priceNext').textContent = priceNext.toFixed(2);
+                            if (change > 0) {
+                                diffEl.innerHTML = '+' + change.toFixed(2) + ' <span style="font-size:11px;font-weight:500;color:#64748b;">详情</span>';
+                                diffEl.className = 'price-diff clickable up';
+                            } else {
+                                diffEl.innerHTML = change.toFixed(2) + ' <span style="font-size:11px;font-weight:500;color:#64748b;">详情</span>';
+                                diffEl.className = 'price-diff clickable down';
+                            }
+                        } else {
+                            document.getElementById('priceNext').textContent = '--';
+                            diffEl.textContent = '';
+                            diffEl.className = 'price-diff clickable';
+                        }
+                    }
+                    updateClearBtns();
+                })
+                .catch(function(err) {
+                    console.error('油价获取失败:', err);
+                    var diffEl = document.getElementById('priceNowDiff');
+                    if (diffEl) {
+                        diffEl.textContent = '加载失败';
+                        diffEl.className = 'price-diff';
+                    }
+                });
+        }
+
+        function useNowPrice() {
+            var price = document.getElementById('priceNow').textContent.trim();
+            if (price && price !== '--' && !isNaN(parseFloat(price))) {
+                document.getElementById('oilPrice').value = price;
+                handleInput();
+            }
+        }
+
+        function openDetail() {
+            window.open('https://www.baidu.com/s?wd=下一轮国内成品油油价调整', '_blank');
+        }
+
+        function on(el, type, fn) {
+            if (!el) return;
+            el.addEventListener(type, fn, false);
+        }
+
+        function getMode() {
+            return document.getElementById('modePercent').classList.contains('active') ? 'percent' : 'amount';
+        }
+
+        function setMode(newMode) {
+            mode = newMode;
+            var label = document.getElementById('fuelLabel');
+            var affix = document.getElementById('fuelAffix');
+            var input = document.getElementById('fuelValue');
+            var btnAmount = document.getElementById('modeAmount');
+            var btnPercent = document.getElementById('modePercent');
+            var quickRow = document.getElementById('quickRow');
+            var percentRow = document.getElementById('percentRow');
+
+            if (newMode === 'percent') {
+                label.textContent = '加油百分比';
+                affix.textContent = '%';
+                input.placeholder = '0.0';
+                input.value = '';
+                btnPercent.classList.add('active');
+                btnAmount.classList.remove('active');
+                quickRow.style.display = 'none';
+                percentRow.style.display = 'flex';
+            } else {
+                label.textContent = '加油金额';
+                affix.textContent = '元';
+                input.placeholder = '0.00';
+                input.value = '';
+                btnAmount.classList.add('active');
+                btnPercent.classList.remove('active');
+                quickRow.style.display = 'flex';
+                percentRow.style.display = 'none';
+            }
+            var ref = getRefPrice();
+            if (ref && ref !== '--' && !isNaN(parseFloat(ref))) {
+                document.getElementById('oilPrice').value = ref;
+            }
+            resetGauge();
+            updateClearBtns();
+        }
+
+        function getRefPrice() {
+            return document.getElementById('priceNow').textContent.trim();
+        }
+
+        function updateTankCapacity() {
+            var v = parseFloat(tankInput.value);
+            TANK_CAPACITY = (v && v > 0) ? v : 68;
+            gaugeUnit.textContent = 'of ' + TANK_CAPACITY + 'L tank';
+        }
+
+        function updateClearBtns() {
+            document.getElementById('clearOilPrice').style.display = document.getElementById('oilPrice').value ? 'block' : 'none';
+            document.getElementById('clearFuelValue').style.display = document.getElementById('fuelValue').value ? 'block' : 'none';
+        }
+
+        function handleInput() {
+            updateClearBtns();
+            var oilPrice = parseFloat(document.getElementById('oilPrice').value);
+            var fuelValue = parseFloat(document.getElementById('fuelValue').value);
+
+            if (!oilPrice || oilPrice <= 0 || !fuelValue || fuelValue <= 0) {
+                gaugePercent.classList.remove('warning');
+                gaugePercent.classList.remove('mode-percent');
+                gaugePercent.textContent = '--';
+                gaugePercent.classList.add('idle');
+                gaugeLiters.textContent = '';
+                gaugeDetail.classList.remove('show');
+                return;
+            }
+            calculate();
+        }
+
+        function calculate() {
+            var oilPrice = parseFloat(document.getElementById('oilPrice').value);
+            var fuelValue = parseFloat(document.getElementById('fuelValue').value);
+
+            var fuelLiters, percent, displayAmount;
+            var curMode = getMode();
+
+            if (curMode === 'amount') {
+                fuelLiters = fuelValue / oilPrice;
+                percent = (fuelLiters / TANK_CAPACITY) * 100;
+                displayAmount = fuelValue;
+            } else {
+                percent = fuelValue;
+                fuelLiters = (percent / 100) * TANK_CAPACITY;
+                displayAmount = fuelLiters * oilPrice;
+            }
+
+            var isWarning = percent > 100;
+
+            gaugePercent.classList.remove('idle');
+            gaugeLiters.textContent = fuelLiters.toFixed(2) + ' L';
+
+            if (curMode === 'amount') {
+                gaugePercent.textContent = percent.toFixed(1) + '%';
+                gaugePercent.classList.remove('mode-percent');
+                gaugeDetail.innerHTML = '加油 <strong>' + fuelLiters.toFixed(2) + '</strong> 升 · ' + displayAmount.toFixed(2) + '元 ÷ ' + oilPrice.toFixed(2) + '元/升 · 油箱 ' + TANK_CAPACITY + 'L';
+            } else {
+                gaugePercent.textContent = '约 ' + displayAmount.toFixed(2) + ' 元';
+                gaugePercent.classList.add('mode-percent');
+                gaugeDetail.innerHTML = '加油 <strong>' + fuelLiters.toFixed(2) + '</strong> 升 · <strong>' + percent.toFixed(1) + '%</strong> · 油价 ' + oilPrice.toFixed(2) + '元/升 · 油箱 ' + TANK_CAPACITY + 'L';
+            }
+
+            if (isWarning) {
+                gaugePercent.classList.add('warning');
+                gaugeDetail.innerHTML += ' · <span style="color:#dc2626;font-weight:600">超过油箱容量</span>';
+            } else {
+                gaugePercent.classList.remove('warning');
+            }
+
+            gaugeDetail.classList.add('show');
+        }
+
+        function resetGauge() {
+            gaugePercent.classList.remove('warning');
+            gaugePercent.classList.remove('mode-percent');
+            gaugePercent.textContent = '--';
+            gaugePercent.classList.add('idle');
+            gaugeLiters.textContent = '';
+            gaugeDetail.classList.remove('show');
+        }
+
+        on(document.getElementById('oilPrice'), 'input', handleInput);
+        on(document.getElementById('fuelValue'), 'input', handleInput);
+        on(tankInput, 'input', function() { updateTankCapacity(); handleInput(); });
+
+        var allInputs = document.querySelectorAll('input[type="text"]');
+        for (var i = 0; i < allInputs.length; i++) {
+            on(allInputs[i], 'focus', function() { this.select(); });
+        }
+
+        var quickBtns = document.querySelectorAll('.quick-btn[data-val]');
+        for (var j = 0; j < quickBtns.length; j++) {
+            on(quickBtns[j], 'click', function() {
+                document.getElementById('fuelValue').value = this.getAttribute('data-val');
+                handleInput();
+            });
+        }
+
+        var percentBtns = document.querySelectorAll('.quick-btn[data-percent]');
+        for (var k = 0; k < percentBtns.length; k++) {
+            on(percentBtns[k], 'click', function() {
+                document.getElementById('fuelValue').value = this.getAttribute('data-percent');
+                handleInput();
+            });
+        }
+
+        on(document.getElementById('clearOilPrice'), 'click', function() {
+            document.getElementById('oilPrice').value = '';
+            handleInput();
+        });
+        on(document.getElementById('clearFuelValue'), 'click', function() {
+            document.getElementById('fuelValue').value = '';
+            handleInput();
+        });
+        on(document.getElementById('usePriceBtn'), 'click', function() {
+            useNowPrice();
+        });
+        on(dateBadge, 'click', function() { openCalendar(); });
+        on(document.getElementById('modeAmount'), 'click', function() { setMode('amount'); });
+        on(document.getElementById('modePercent'), 'click', function() { setMode('percent'); });
+
+        var calYear, calMonth;
+        var today = new Date();
+
+        function renderCalendar() {
+            document.getElementById('calTitle').textContent = calYear + '年' + (calMonth + 1) + '月';
+            var first = new Date(calYear, calMonth, 1).getDay();
+            var total = new Date(calYear, calMonth + 1, 0).getDate();
+            var html = '';
+            for (var i = 0; i < first; i++) html += '<span class="empty"></span>';
+            for (var d = 1; d <= total; d++) {
+                var cls = '';
+                if (d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear()) cls += ' today';
+                if (selectedDate && d === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear()) cls += ' selected';
+                var thisYMD = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                if (adjustSchedule.indexOf(thisYMD) >= 0) cls += ' adjust';
+                if (cls) cls = ' class="' + cls.trim() + '"';
+                html += '<span data-day="' + d + '"' + cls + '>' + d + '</span>';
+            }
+            document.getElementById('calDays').innerHTML = html;
+        }
+
+        function selectDate(day) {
+            var d = new Date(calYear, calMonth, day);
+            selectedDate = d;
+            var m = d.getMonth() + 1;
+            var dd = d.getDate();
+            dateText.textContent = m + '月' + dd + '日';
+            document.getElementById('calMask').classList.remove('show');
+        }
+
+        function openCalendar() {
+            if (selectedDate) {
+                calYear = selectedDate.getFullYear();
+                calMonth = selectedDate.getMonth();
+            } else {
+                calYear = today.getFullYear();
+                calMonth = today.getMonth();
+            }
+            renderCalendar();
+            document.getElementById('calMask').classList.add('show');
+        }
+
+        on(document.getElementById('calPrev'), 'click', function() {
+            calMonth--;
+            if (calMonth < 0) { calMonth = 11; calYear--; }
+            renderCalendar();
+        });
+        on(document.getElementById('calNext'), 'click', function() {
+            calMonth++;
+            if (calMonth > 11) { calMonth = 0; calYear++; }
+            renderCalendar();
+        });
+        on(document.getElementById('calClose'), 'click', function() {
+            document.getElementById('calMask').classList.remove('show');
+        });
+        on(document.getElementById('calToday'), 'click', function() {
+            calYear = today.getFullYear();
+            calMonth = today.getMonth();
+            renderCalendar();
+        });
+        on(document.getElementById('calMask'), 'click', function(e) {
+            if (e.target === this) this.classList.remove('show');
+        });
+        on(document.getElementById('calDays'), 'click', function(e) {
+            var span = e.target.closest('span[data-day]');
+            if (span) selectDate(parseInt(span.getAttribute('data-day')));
+        });
+
+        updateTankCapacity();
+        updateClearBtns();
+        dateText.textContent = formatDate();
+        fetchOilPrice();
+        setMode('amount');
+
+        window.addEventListener('pageshow', function(e) {
+            if (e.persisted) {
+                mode = 'amount';
+                document.getElementById('fuelLabel').textContent = '加油金额';
+                document.getElementById('fuelAffix').textContent = '元';
+                document.getElementById('fuelValue').placeholder = '0.00';
+                document.getElementById('fuelValue').value = '';
+                document.getElementById('modeAmount').classList.add('active');
+                document.getElementById('modePercent').classList.remove('active');
+                document.getElementById('quickRow').style.display = 'flex';
+                document.getElementById('percentRow').style.display = 'none';
+                resetGauge();
+            }
+        });
+    </script>
+</body>
+</html>
