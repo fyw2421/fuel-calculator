@@ -237,7 +237,25 @@
         .gauge-detail.show { display: block; }
         .gauge-detail strong { color: #0f172a; font-weight: 600; }
 
+        .history-btn {
+            font-size: 11px;
+            padding: 2px 8px;
+            border: 1px solid #d1d5db;
+            border-radius: 4px;
+            background: #fff;
+            color: #64748b;
+            cursor: pointer;
+            font-family: inherit;
+            margin-left: 8px;
+            vertical-align: middle;
+        }
+        .history-btn:hover {
+            border-color: #0d9488;
+            color: #0d9488;
+            background: #f0fdfa;
+        }
         .footer { text-align: center; font-size: 13px; color: #94a3b8; margin-top: 20px; }
+        .footer .version { color: #94a3b8; }
 
         .cal-mask {
             display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
@@ -339,7 +357,7 @@
         </div>
 
         <div class="price-table loading" id="priceTable">
-            <div class="price-table-title">长沙 · 95#汽油</div>
+            <div class="price-table-title">长沙 · 95#汽油<button type="button" class="history-btn" id="historyBtn">历史</button></div>
             <div class="price-grid">
                 <span class="price-label">今日&nbsp;</span>
                 <span class="price-date" id="priceDate"></span>
@@ -392,7 +410,7 @@
             <div class="gauge-detail" id="gaugeDetail"></div>
         </div>
 
-        <div class="footer">以加油站实际挂牌价为准</div>
+        <div class="footer">以加油站实际挂牌价为准 <span class="version" id="versionDisplay"></span></div>
     </div>
 
     <div class="cal-mask" id="calMask">
@@ -933,9 +951,13 @@
 
         on(document.getElementById('priceDiff'), 'click', openDetail);
         on(document.getElementById('priceNowDiff'), 'click', openTodayDetail);
+        on(document.getElementById('historyBtn'), 'click', function() {
+            window.open('https://www.baidu.com/s?wd=长沙95号汽油历史油价', '_blank');
+        });
         updateTankCapacity();
         updateClearBtns();
         dateText.textContent = formatDate();
+        document.getElementById('versionDisplay').textContent = 'V1.0.0';
         loadAdjustSchedule();
         fetchOilPrice();
         setMode('amount');
