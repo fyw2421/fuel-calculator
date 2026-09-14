@@ -39,6 +39,12 @@
 - 下轮预测：`v1.apizero.cn/api/oil-price-forecast?action=forecast`
 - 调价日历：`v1.apizero.cn/api/oil-price-forecast?action=schedule`
 
+## 版本管理
+
+- 版本号格式：`1.yy.mmdd`，其中 `yy` 为年份后两位，`mmdd` 为当前月日
+- 示例：`1.26.0914`（2026年9月14日）
+- 运行 `update-version.bat` 自动更新 `VERSION` 文件
+
 ## API 限流处理
 
 - 所有请求设置 `cache: 'no-store'`，确保每次加载获取最新数据
