@@ -90,6 +90,25 @@
             background: #f8fafc; border: 1px solid #d1d5db; border-radius: 12px;
             padding: 10px 14px; margin-bottom: 16px; overflow: hidden;
         }
+        .price-table.loading .price-val,
+        .price-table.loading .price-diff,
+        .price-table.loading .price-date,
+        .price-table.loading .price-week {
+            color: #cbd5e1;
+            background: linear-gradient(90deg, #f1f5f9 25%, #e2e8f0 50%, #f1f5f9 75%);
+            background-size: 200% 100%;
+            animation: shimmer 1.5s infinite;
+            border-radius: 4px;
+        }
+        @keyframes shimmer {
+            0% { background-position: 200% 0; }
+            100% { background-position: -200% 0; }
+        }
+        .price-grid + .price-grid {
+            margin-top: 8px;
+            padding-top: 8px;
+            border-top: 1px solid #e5e7eb;
+        }
         .price-table-title {
             font-size: 11px; text-transform: uppercase; letter-spacing: 1px;
             color: #64748b; margin-bottom: 8px; font-weight: 500;
@@ -102,10 +121,6 @@
         }
         .price-grid > span {
             padding: 6px 0;
-        }
-        .price-row {
-            display: contents;
-            font-size: 13px;
         }
         .price-label { color: #64748b; font-weight: 500; white-space: nowrap; }
         .price-date { color: #0f172a; font-family: monospace; font-weight: 600; font-size: 12px; line-height: 1.3; }
@@ -323,7 +338,7 @@
             <button type="button" class="mode-btn" id="modePercent">输入百分比 → 算金额</button>
         </div>
 
-        <div class="price-table">
+        <div class="price-table loading" id="priceTable">
             <div class="price-table-title">长沙 · 95#汽油</div>
             <div class="price-grid">
                 <span class="price-label">今日&nbsp;</span>
@@ -331,6 +346,8 @@
                 <span class="price-week" id="priceWeek"></span>
                 <span class="price-val" id="priceNow">--</span>
                 <span class="price-diff" id="priceNowDiff"></span>
+            </div>
+            <div class="price-grid">
                 <span class="price-label">下轮</span>
                 <span class="price-date" id="nextDate">--</span>
                 <span class="price-week" id="nextWeek"></span>
@@ -410,6 +427,15 @@
         var adjustSchedule = [];
         var selectedDate = null;
 
+        // ====================================================================
+        // 油价数据来源：
+        //   1. 今日油价：v2.xxapi.cn/api/oilPrice（实时）
+        //   2. 下轮预测：v1.apizero.cn forecast API（涨跌幅 + 窗口日期）
+        //   3. 调价日历：v1.apizero.cn schedule API（窗口日期列表）
+        //
+        // 无需手动维护，全部自动获取。
+        // ====================================================================
+
         function formatDate() {
             var now = new Date();
             var m = (now.getMonth() + 1);
@@ -422,72 +448,32 @@
             return weeks[date.getDay()];
         }
 
-        var priceCacheKey = 'fuel_price_cache';
-        var forecastCacheKey = 'fuel_forecast_cache';
-        var scheduleCacheKey = 'fuel_schedule_cache';
-        var CACHE_TTL = 30 * 60 * 1000;
-
-        function loadCache(key) {
-            try {
-                var raw = localStorage.getItem(key);
-                if (raw) return JSON.parse(raw);
-            } catch (e) {}
-            return null;
-        }
-
-        function saveCache(key, data) {
-            try {
-                localStorage.setItem(key, JSON.stringify(data));
-            } catch (e) {}
-        }
-
-        function getCachedData(key, ttl) {
-            var cached = loadCache(key);
-            if (cached && cached.ts && (Date.now() - cached.ts) < ttl) {
-                return cached.data;
-            }
-            return null;
-        }
-
-        function setCachedData(key, data) {
-            saveCache(key, { data: data, ts: Date.now() });
-        }
-
-        // apizero reports "too fast" as an HTTP 200 whose BODY carries code 4029,
-        // so the HTTP status alone cannot detect throttling.
+        // apizero signals throttling with HTTP 429, and repeats the reason as
+        // code 4029 in the body. Checking the body as well is belt-and-braces:
+        // the status alone is enough today, but a gateway change would not go
+        // unnoticed.
         function isThrottled(json) {
             return !!json && typeof json === 'object' &&
                 (json.code === 4029 || json.code === 429);
         }
 
-        // Success is code 200 (xxapi) or code 0 (apizero); anything else is an
-        // error body whose cached copy would poison later page loads.
-        function isErrorBody(json) {
-            return !!json && typeof json === 'object' &&
-                typeof json.code === 'number' && json.code !== 0 && json.code !== 200;
-        }
-
-        function isUsablePayload(json) {
-            return !!json && !isThrottled(json) && !isErrorBody(json);
-        }
-
-        function fetchWithCache(url, cacheKey, ttl) {
-            ttl = ttl || CACHE_TTL;
-            var cached = getCachedData(cacheKey, ttl);
-            if (isUsablePayload(cached)) return Promise.resolve(cached);
-
+        // No caching: every page load hits the network, so the displayed price is
+        // always what the API says right now. `cache: 'no-store'` also keeps the
+        // browser's HTTP cache out of the way.
+        //
+        // Rate limiting is still retried -- apizero allows only 1 request/second,
+        // which rapid refreshes or a shared NAT egress IP can exceed.
+        function fetchJSON(url) {
             var retryCount = 0;
             var maxRetries = 3;
             var baseDelay = 1000;
 
-            function retryLater(body, reason) {
+            function retryLater(reason) {
                 if (retryCount >= maxRetries) {
                     throw new Error('throttled (' + reason + '), retries exhausted');
                 }
                 retryCount++;
                 var delay = baseDelay * Math.pow(2, retryCount - 1);
-                var retryAfter = body && body.data && Number(body.data.retry_after);
-                if (retryAfter > 0) delay = Math.max(delay, retryAfter * 1000);
                 console.warn('API throttled (' + reason + '), retry ' + retryCount + ' after ' + delay + 'ms');
                 return new Promise(function(resolve) {
                     setTimeout(function() {
@@ -497,161 +483,203 @@
             }
 
             function attempt() {
-                return fetch(url)
-                    .then(function(res) {
-                        if (res.status === 429) return retryLater(null, 'HTTP 429');
-                        return res.json().then(function(json) {
-                            if (isThrottled(json)) return retryLater(json, 'code ' + json.code);
-                            if (!isErrorBody(json)) setCachedData(cacheKey, json);
-                            return json;
-                        });
-                    })
-                    .catch(function(err) {
-                        console.error('Fetch error:', url, err);
-                        var stale = loadCache(cacheKey);
-                        if (stale && isUsablePayload(stale.data)) {
-                            console.warn('Using stale cache for', url);
-                            return stale.data;
-                        }
-                        return Promise.reject(err);
+                return fetch(url, { cache: 'no-store' }).then(function(res) {
+                    if (res.status === 429) return retryLater('HTTP 429');
+                    return res.json().then(function(json) {
+                        if (isThrottled(json)) return retryLater('code ' + json.code);
+                        return json;
                     });
+                }).catch(function(err) {
+                    if (retryCount < maxRetries) {
+                        return retryLater('network');
+                    }
+                    throw err;
+                });
             }
 
             return attempt();
         }
 
+        // Parses an xxapi payload and paints today's row. Returns false if the
+        // payload cannot be understood, which the caller treats as a failure.
+        function applyTodayPrice(json) {
+            if (!json) return false;
+            // Shape is {code: 200, data: [...provinces...]}. Tolerate a
+            // nested data.data wrapper in case upstream changes.
+            var list = Array.isArray(json.data) ? json.data
+                : (json.data && Array.isArray(json.data.data) ? json.data.data : null);
+            var apiCode = typeof json.code === 'number' ? json.code : (json.data && json.data.code);
+            if (!list || apiCode !== 200) {
+                console.warn('油价接口返回结构异常:', json);
+                return false;
+            }
+            var hunan = null;
+            for (var i = 0; i < list.length; i++) {
+                var name = list[i].regionName || list[i].province || list[i].name || '';
+                if (name && name.indexOf('湖南') >= 0) {
+                    hunan = list[i];
+                    break;
+                }
+            }
+            if (!hunan) {
+                if (list.length > 0) console.warn('未找到湖南，首个元素字段:', Object.keys(list[0]));
+                return false;
+            }
+
+            var p95 = parseFloat(hunan.n95);
+            if (!p95) return false;
+            var priceText = p95.toFixed(2);
+
+            document.getElementById('oilPrice').value = priceText;
+            document.getElementById('priceNow').textContent = priceText;
+            var now = new Date();
+            document.getElementById('priceDate').textContent =
+                String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
+            document.getElementById('priceWeek').textContent = getWeekday(now);
+
+            var change = parseFloat(hunan.n95Change);
+            var diffEl = document.getElementById('priceNowDiff');
+            if (!isNaN(change)) {
+                diffEl.textContent = (change > 0 ? '+' : '') + change.toFixed(2);
+                diffEl.className = 'price-diff clickable' +
+                    (change > 0 ? ' up' : (change < 0 ? ' down' : ''));
+            } else {
+                diffEl.textContent = '';
+                diffEl.className = 'price-diff clickable';
+            }
+            return true;
+        }
+
+        // Clicking 今日's change value opens a search for today's price, matching
+        // what openDetail() does for the next-round prediction.
+        function openTodayDetail() {
+            window.open('https://www.baidu.com/s?wd=长沙95号汽油今日油价', '_blank');
+        }
+
+        function parseYMD(str) {
+            var p = String(str).split('-');
+            return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
+        }
+
+        function formatMD(d) {
+            return String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+        }
+
+        // 公告写的是「X 日 24 时起」，所以实际生效日是窗口日的次日。
+        function effectiveDate(windowDay) {
+            var d = parseYMD(windowDay);
+            d.setDate(d.getDate() + 1);
+            return d;
+        }
+
+        function renderNextFromForecast(json) {
+            var dateEl = document.getElementById('nextDate');
+            var weekEl = document.getElementById('nextWeek');
+            var priceEl = document.getElementById('priceNext');
+            var diffEl = document.getElementById('priceDiff');
+            diffEl.className = 'price-diff clickable';
+
+            if (!json || json.code !== 0 || !json.data) {
+                dateEl.textContent = '--';
+                weekEl.textContent = '';
+                priceEl.textContent = '--';
+                diffEl.textContent = '';
+                return;
+            }
+
+            var d = json.data;
+            if (!d.next_adjust_date) {
+                dateEl.textContent = '--';
+                weekEl.textContent = '';
+                priceEl.textContent = '--';
+                diffEl.textContent = '';
+                return;
+            }
+
+            var parts = d.next_adjust_date.split('-');
+            if (parts.length < 3) return;
+            var anchor = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+            var eff = effectiveDate(d.next_adjust_date);
+            var curYear = new Date().getFullYear();
+            var fullDate = (eff.getFullYear() !== curYear ? eff.getFullYear() + '-' : '') + formatMD(eff);
+            dateEl.innerHTML = parts[1] + '-' + parts[2] + ' 24时<br><span style="color:#dc2626;">' + fullDate + '</span>';
+            weekEl.textContent = getWeekday(eff);
+
+            var priceNowText = document.getElementById('priceNow').textContent.trim();
+            if (!d.prediction || priceNowText === '--' || isNaN(parseFloat(priceNowText))) {
+                priceEl.textContent = '--';
+                diffEl.textContent = '待公布';
+                return;
+            }
+
+            var change = d.prediction.estimated_change_per_liter;
+            if (change === null || isNaN(change)) {
+                priceEl.textContent = '--';
+                diffEl.textContent = '待公布';
+                return;
+            }
+
+            var priceNow = parseFloat(priceNowText);
+            var priceNext = priceNow + change;
+            priceEl.textContent = priceNext.toFixed(2);
+            diffEl.innerHTML = (change > 0 ? '+' : '') + change.toFixed(2) +
+                ' <span style="font-size:11px;font-weight:500;color:#64748b;">详情</span>';
+            diffEl.className = 'price-diff clickable' + (change > 0 ? ' up' : (change < 0 ? ' down' : ''));
+        }
+
+        // 调价日历的窗口日期取自 apizero 的 schedule 接口 —— 这部分它是准的，
+        // 已与新浪财经 / 央视公布的 2026 全年窗口日历核对一致。
+        function loadAdjustSchedule() {
+            var year = new Date().getFullYear();
+            var priceTable = document.getElementById('priceTable');
+
+            return fetchJSON('https://v1.apizero.cn/api/oil-price-forecast?action=schedule&year=' + year)
+                .then(function(sj) {
+                    if (sj && sj.code === 0 && sj.data && sj.data.schedule) {
+                        var shifted = sj.data.schedule.map(function(item) {
+                            var d = parseYMD(item.date.split('T')[0]);
+                            d.setDate(d.getDate() + 1);
+                            return d.getFullYear() + '-' +
+                                String(d.getMonth() + 1).padStart(2, '0') + '-' +
+                                String(d.getDate()).padStart(2, '0');
+                        });
+                        adjustSchedule = Array.from(new Set(adjustSchedule.concat(shifted)));
+                        if (document.getElementById('calMask').classList.contains('show')) {
+                            renderCalendar();
+                        }
+                    } else {
+                        console.warn('schedule api unexpected', sj);
+                    }
+                })
+                .catch(function(err) { console.error('调价日历获取失败:', err); })
+                .finally(function() {
+                    if (priceTable) priceTable.classList.remove('loading');
+                });
+        }
+
+        // 今日油价 + 下轮预测，全部从 API 自动获取，无需手动维护。
         function fetchOilPrice() {
-            fetchWithCache('https://v2.xxapi.cn/api/oilPrice', priceCacheKey)
+            fetchJSON('https://v2.xxapi.cn/api/oilPrice')
                 .then(function(json) {
-                    if (!json) return null;
-                    // Shape is {code: 200, data: [...provinces...]}. Tolerate a
-                    // nested data.data wrapper in case upstream changes.
-                    var list = Array.isArray(json.data) ? json.data
-                        : (json.data && Array.isArray(json.data.data) ? json.data.data : null);
-                    var apiCode = typeof json.code === 'number' ? json.code : (json.data && json.data.code);
-                    if (!list || apiCode !== 200) {
-                        console.warn('油价接口返回结构异常:', json);
-                        return null;
-                    }
-                    var hunan = null;
-                    for (var i = 0; i < list.length; i++) {
-                        var name = list[i].regionName || list[i].province || list[i].name || '';
-                        if (name && name.indexOf('湖南') >= 0) {
-                            hunan = list[i];
-                            break;
-                        }
-                    }
-                    if (!hunan && list.length > 0) {
-                        console.warn('未找到湖南，首个元素字段:', Object.keys(list[0]));
-                    }
-                    if (!hunan) return null;
-                    return hunan;
-                })
-                .then(function(hunan) {
-                    if (!hunan) return;
-                    var p95 = parseFloat(hunan.n95);
-                    var change = parseFloat(hunan.n95Change);
-                    if (p95) {
-                        document.getElementById('priceNow').textContent = p95.toFixed(2);
-                        document.getElementById('oilPrice').value = p95.toFixed(2);
-                    }
-                    if (change !== null && !isNaN(change)) {
-                        var diffEl = document.getElementById('priceNowDiff');
-                        if (change > 0) {
-                            diffEl.textContent = '+' + change.toFixed(2);
-                            diffEl.className = 'price-diff up';
-                        } else {
-                            diffEl.textContent = change.toFixed(2);
-                            diffEl.className = 'price-diff down';
-                        }
-                    }
-                    var now = new Date();
-                    var mm = String(now.getMonth() + 1).padStart(2, '0');
-                    var dd = String(now.getDate()).padStart(2, '0');
-                    document.getElementById('priceDate').textContent = mm + '-' + dd;
-                    document.getElementById('priceWeek').textContent = getWeekday(now);
-                    return fetchWithCache('https://v1.apizero.cn/api/oil-price-forecast?action=forecast&province=%E6%B9%96%E5%8D%97', forecastCacheKey);
-                })
-                .then(function(json) { return json; })
-                .then(function(json) {
-                    if (!json || json.code !== 0 || !json.data) {
-                        return;
-                    }
-                    var d = json.data;
-                    if (d.next_adjust_date) {
-                        var parts = d.next_adjust_date.split('-');
-                        if (parts.length >= 3) {
-                            var anchor = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-                            anchor.setDate(anchor.getDate() + 1);
-                            var nd = anchor;
-                            var fullDate = '';
-                            var curYear = new Date().getFullYear();
-                            if (nd.getFullYear() !== curYear) {
-                                fullDate = nd.getFullYear() + '-';
-                            }
-                            fullDate += String(nd.getMonth() + 1).padStart(2, '0') + '-' + String(nd.getDate()).padStart(2, '0');
-                            document.getElementById('nextDate').innerHTML = parts[1] + '-' + parts[2] + ' 24时<br><span style="color:#dc2626;">' + fullDate + '</span>';
-                            document.getElementById('nextWeek').textContent = getWeekday(nd);
-                            fetchWithCache('https://v1.apizero.cn/api/oil-price-forecast?action=schedule&year=' + nd.getFullYear(), scheduleCacheKey)
-                                .then(function(json) { return json; })
-                                .then(function(sj) {
-                                    if (sj && sj.code === 0 && sj.data && sj.data.schedule) {
-                                        var shifted = sj.data.schedule.map(function(item) {
-                                            var dateStr = item.date.split('T')[0];
-                                            var p = dateStr.split('-');
-                                            var dt = new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
-                                            dt.setDate(dt.getDate() + 1);
-                                            return dt.getFullYear() + '-' + String(dt.getMonth() + 1).padStart(2, '0') + '-' + String(dt.getDate()).padStart(2, '0');
-                                        });
-                                        adjustSchedule = Array.from(new Set(adjustSchedule.concat(shifted)));
-                                        console.log('adjustSchedule loaded:', adjustSchedule.length, adjustSchedule);
-                                        if (document.getElementById('calMask').classList.contains('show')) {
-                                            renderCalendar();
-                                        }
-                                    } else {
-                                        console.warn('schedule api unexpected', sj);
-                                    }
-                                })
-                                .catch(function(err) { console.error('调价日历获取失败:', err); });
-                        }
-                    }
-                    if (d.prediction) {
-                        var change = parseFloat(d.prediction.estimated_change_per_liter);
-                        var dir = d.prediction.direction || '';
-                        var diffEl = document.getElementById('priceDiff');
-                        // estimated_change_per_liter is an unsigned magnitude
-                        // (e.g. 0.966 for a 下跌 day), so the sign has to come
-                        // from `direction` rather than from the number itself.
-                        if (/下跌|下调/.test(dir)) change = -Math.abs(change);
-                        else if (/上涨|上调/.test(dir)) change = Math.abs(change);
-                        if (!isNaN(change)) {
-                            var priceNowText = document.getElementById('priceNow').textContent.trim();
-                            if (priceNowText === '--' || isNaN(parseFloat(priceNowText))) return;
-                            var priceNow = parseFloat(priceNowText);
-                            var priceNext = priceNow + change;
-                            document.getElementById('priceNext').textContent = priceNext.toFixed(2);
-                            var sign = change > 0 ? ' up' : (change < 0 ? ' down' : '');
-                            diffEl.innerHTML = (change > 0 ? '+' : '') + change.toFixed(2) +
-                                ' <span style="font-size:11px;font-weight:500;color:#64748b;">详情</span>';
-                            diffEl.className = 'price-diff clickable' + sign;
-                        } else {
-                            document.getElementById('priceNext').textContent = '--';
-                            diffEl.textContent = '';
-                            diffEl.className = 'price-diff clickable';
-                        }
-                    }
+                    applyTodayPrice(json);
                     updateClearBtns();
                 })
                 .catch(function(err) {
-                    console.error('油价获取失败:', err);
+                    console.error('今日油价获取失败:', err);
                     var nowEl = document.getElementById('priceNow');
                     var diffEl = document.getElementById('priceNowDiff');
-                    // Only surface the failure if today's price never arrived --
-                    // a failed forecast should not blank out a valid price.
                     if (diffEl && nowEl && nowEl.textContent.trim() === '--') {
                         diffEl.textContent = '加载失败';
-                        diffEl.className = 'price-diff';
+                        diffEl.className = 'price-diff clickable';
                     }
+                });
+
+            fetchJSON('https://v1.apizero.cn/api/oil-price-forecast?action=forecast&province=%E6%B9%96%E5%8D%97')
+                .then(function(json) {
+                    renderNextFromForecast(json);
+                })
+                .catch(function(err) {
+                    console.error('下轮油价获取失败:', err);
                 });
         }
 
@@ -837,7 +865,9 @@
         on(document.getElementById('modePercent'), 'click', function() { setMode('percent'); });
 
         var calYear, calMonth;
-        var today = new Date();
+        function todayDate() {
+            return new Date();
+        }
 
         function renderCalendar() {
             document.getElementById('calTitle').textContent = calYear + '年' + (calMonth + 1) + '月';
@@ -847,7 +877,7 @@
             for (var i = 0; i < first; i++) html += '<span class="empty"></span>';
             for (var d = 1; d <= total; d++) {
                 var cls = '';
-                if (d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear()) cls += ' today';
+                if (d === todayDate().getDate() && calMonth === todayDate().getMonth() && calYear === todayDate().getFullYear()) cls += ' today';
                 if (selectedDate && d === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear()) cls += ' selected';
                 var thisYMD = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
                 if (adjustSchedule.indexOf(thisYMD) >= 0) cls += ' adjust';
@@ -871,8 +901,8 @@
                 calYear = selectedDate.getFullYear();
                 calMonth = selectedDate.getMonth();
             } else {
-                calYear = today.getFullYear();
-                calMonth = today.getMonth();
+                calYear = todayDate().getFullYear();
+                calMonth = todayDate().getMonth();
             }
             renderCalendar();
             document.getElementById('calMask').classList.add('show');
@@ -892,8 +922,8 @@
             document.getElementById('calMask').classList.remove('show');
         });
         on(document.getElementById('calToday'), 'click', function() {
-            calYear = today.getFullYear();
-            calMonth = today.getMonth();
+            calYear = todayDate().getFullYear();
+            calMonth = todayDate().getMonth();
             renderCalendar();
         });
         on(document.getElementById('calDays'), 'click', function(e) {
@@ -902,9 +932,11 @@
         });
 
         on(document.getElementById('priceDiff'), 'click', openDetail);
+        on(document.getElementById('priceNowDiff'), 'click', openTodayDetail);
         updateTankCapacity();
         updateClearBtns();
         dateText.textContent = formatDate();
+        loadAdjustSchedule();
         fetchOilPrice();
         setMode('amount');
 

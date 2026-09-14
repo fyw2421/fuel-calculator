@@ -207,21 +207,36 @@ export function createDom(html) {
   };
 
   const winListeners = {};
+  const opened = [];
   const window = {
     addEventListener(type, fn) {
       (winListeners[type] = winListeners[type] || []).push(fn);
     },
+    // Records window.open calls so a test can assert where a click navigates.
+    open(url, target) {
+      opened.push({ url: String(url), target: target || '' });
+      return null;
+    },
   };
 
+  const localStorage = createLocalStorage();
+
+  return { document, window, localStorage, byId, all, root, opened };
+}
+
+/**
+ * Standalone localStorage stub. `_store` is exposed so tests can assert that
+ * the page wrote nothing at all.
+ */
+export function createLocalStorage() {
   const store = new Map();
-  const localStorage = {
+  return {
+    _store: store,
     getItem: (k) => (store.has(k) ? store.get(k) : null),
     setItem: (k, v) => store.set(k, String(v)),
     removeItem: (k) => store.delete(k),
     clear: () => store.clear(),
   };
-
-  return { document, window, localStorage, byId, all, root };
 }
 
 export { StubElement };
