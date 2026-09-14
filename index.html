@@ -180,10 +180,10 @@
             transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
             display: flex; flex-direction: column;
         }
-        .input-group:nth-child(1) { background: #f0fdfa; border-color: #99f6e4; }
-        .input-group:nth-child(2) { background: #fffbeb; border-color: #fde68a; }
-        .input-group:nth-child(1):focus-within { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
-        .input-group:nth-child(2):focus-within { border-color: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,0.12); }
+        .input-group.oil-group { background: #f0fdfa; border-color: #99f6e4; }
+        .input-group.fuel-group { background: #fffbeb; border-color: #fde68a; }
+        .input-group.oil-group:focus-within { border-color: #0d9488; box-shadow: 0 0 0 3px rgba(13,148,136,0.12); }
+        .input-group.fuel-group:focus-within { border-color: #d97706; box-shadow: 0 0 0 3px rgba(217,119,6,0.12); }
         .clear-btn {
             position: absolute; top: 8px; right: 8px;
             width: 24px; height: 24px; border: none; border-radius: 50%;
@@ -245,7 +245,9 @@
             font-size: 14px; color: #475569; display: none; line-height: 1.7;
         }
         .gauge-detail.show { display: block; }
-        .gauge-detail strong { color: #0f172a; font-weight: 600; }
+        .price-date .future { color: #dc2626; font-size: 11px; font-weight: 500; }
+        .price-diff .detail { font-size: 11px; font-weight: 500; color: #64748b; }
+        .gauge-detail .warning-text { color: #dc2626; font-weight: 600; }
 
         .history-btn {
             font-size: 11px;
@@ -385,20 +387,20 @@
         </div>
 
         <div class="inputs">
-            <div class="input-group">
+<div class="input-group oil-group">
                 <button type="button" class="clear-btn" id="clearOilPrice" aria-label="清除油价">×</button>
                 <label class="input-label">油价</label>
                 <div class="input-wrap">
-                     <input type="number" inputmode="decimal" id="oilPrice" placeholder="0.00" aria-label="油价">
+                      <input type="number" inputmode="decimal" id="oilPrice" placeholder="0.00" aria-label="油价">
                     <span class="input-affix">元/升</span>
                 </div>
                 <button type="button" class="use-price-btn" id="usePriceBtn" aria-label="使用当前油价">当前油价</button>
             </div>
-            <div class="input-group">
+            <div class="input-group fuel-group">
                 <button type="button" class="clear-btn" id="clearFuelValue" aria-label="清除加油金额">×</button>
                 <label class="input-label" id="fuelLabel">加油金额</label>
                 <div class="input-wrap">
-                     <input type="number" inputmode="decimal" id="fuelValue" placeholder="0.00" aria-label="加油金额">
+                      <input type="number" inputmode="decimal" id="fuelValue" placeholder="0.00" aria-label="加油金额">
                     <span class="input-affix" id="fuelAffix">元</span>
                 </div>
                 <div class="quick-row" id="quickRow">
@@ -442,7 +444,6 @@
     </div>
 
     <script>
-const TANK_CAPACITY_DEFAULT = 68;
 let tankCapacity = 68;
 let mode = 'amount';
 const gaugeSection = document.getElementById('gaugeSection');
@@ -496,6 +497,7 @@ let selectedDate = null;
             let retryCount = 0;
             let maxRetries = 3;
             let baseDelay = 1000;
+            let timeoutMs = 8000;
 
             function retryLater(reason) {
                 if (retryCount >= maxRetries) {
@@ -512,13 +514,17 @@ let selectedDate = null;
             }
 
             function attempt() {
-                return fetch(url, { cache: 'no-store' }).then(function(res) {
+                let controller = new AbortController();
+                let timeoutId = setTimeout(function() { controller.abort(); }, timeoutMs);
+                return fetch(url, { cache: 'no-store', signal: controller.signal }).then(function(res) {
+                    clearTimeout(timeoutId);
                     if (res.status === 429) return retryLater('HTTP 429');
                     return res.json().then(function(json) {
                         if (isThrottled(json)) return retryLater('code ' + json.code);
                         return json;
                     });
                 }).catch(function(err) {
+                    clearTimeout(timeoutId);
                     if (retryCount < maxRetries) {
                         return retryLater('network');
                     }
@@ -633,7 +639,7 @@ let selectedDate = null;
             let fullDate = (eff.getFullYear() !== curYear ? eff.getFullYear() + '-' : '') + formatMD(eff);
             dateEl.textContent = parts[1] + '-' + parts[2] + ' 24时 ';
             const fullDateSpan = document.createElement('span');
-            fullDateSpan.style.color = '#dc2626';
+            fullDateSpan.className = 'future';
             fullDateSpan.textContent = fullDate;
             dateEl.appendChild(fullDateSpan);
             weekEl.textContent = getWeekday(eff);
@@ -657,9 +663,7 @@ let selectedDate = null;
             priceEl.textContent = priceNext.toFixed(2);
             diffEl.textContent = (change > 0 ? '+' : '') + change.toFixed(2) + ' ';
             const detailSpan = document.createElement('span');
-            detailSpan.style.fontSize = '11px';
-            detailSpan.style.fontWeight = '500';
-            detailSpan.style.color = '#64748b';
+            detailSpan.className = 'detail';
             detailSpan.textContent = '详情';
             diffEl.appendChild(detailSpan);
             diffEl.className = 'price-diff clickable' + (change > 0 ? ' up' : (change < 0 ? ' down' : ''));
@@ -845,8 +849,7 @@ let selectedDate = null;
             if (isWarning) {
                 gaugePercent.classList.add('warning');
                 let warningEl = document.createElement('span');
-                warningEl.style.color = '#dc2626';
-                warningEl.style.fontWeight = '600';
+                warningEl.className = 'warning-text';
                 warningEl.textContent = '超过油箱容量';
                 gaugeDetail.textContent += ' · ' + warningEl.textContent;
             } else {
@@ -911,6 +914,7 @@ let selectedDate = null;
         }
 
 function renderCalendar() {
+             let today = getToday();
              document.getElementById('calTitle').textContent = calYear + '年' + (calMonth + 1) + '月';
              let first = new Date(calYear, calMonth, 1).getDay();
              let total = new Date(calYear, calMonth + 1, 0).getDate();
@@ -925,7 +929,7 @@ function renderCalendar() {
                  let span = document.createElement('span');
                  span.setAttribute('data-day', d);
                  let cls = '';
-                 if (d === getToday().getDate() && calMonth === getToday().getMonth() && calYear === getToday().getFullYear()) cls += ' today';
+                 if (d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear()) cls += ' today';
                  if (selectedDate && d === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear()) cls += ' selected';
                  let thisYMD = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
                  if (adjustSchedule.indexOf(thisYMD) >= 0) cls += ' adjust';
@@ -996,7 +1000,7 @@ function renderCalendar() {
         updateTankCapacity();
         updateClearBtns();
         dateText.textContent = formatDate();
-        document.getElementById('versionDisplay').textContent = 'V1.0.0';
+        document.getElementById('versionDisplay').textContent = 'V1.26.0914';
         loadAdjustSchedule();
         fetchOilPrice();
         setMode('amount');
@@ -1016,6 +1020,7 @@ function renderCalendar() {
                 document.getElementById('percentRow').style.display = 'none';
                 resetGauge();
                 updateTankCapacity();
+                fetchOilPrice();
             }
         });
     </script>
