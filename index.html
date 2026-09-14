@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="汽油百分比计算器：按长沙 95# 汽油实时油价，输入加油金额或百分比，自动换算加油升数与占油箱比例。">
     <title>汽油百分比计算</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -387,11 +388,11 @@
         </div>
 
         <div class="inputs">
-<div class="input-group oil-group">
+            <div class="input-group oil-group">
                 <button type="button" class="clear-btn" id="clearOilPrice" aria-label="清除油价">×</button>
                 <label class="input-label">油价</label>
                 <div class="input-wrap">
-                      <input type="number" inputmode="decimal" id="oilPrice" placeholder="0.00" aria-label="油价">
+                    <input type="number" inputmode="decimal" id="oilPrice" placeholder="0.00" aria-label="油价">
                     <span class="input-affix">元/升</span>
                 </div>
                 <button type="button" class="use-price-btn" id="usePriceBtn" aria-label="使用当前油价">当前油价</button>
@@ -400,7 +401,7 @@
                 <button type="button" class="clear-btn" id="clearFuelValue" aria-label="清除加油金额">×</button>
                 <label class="input-label" id="fuelLabel">加油金额</label>
                 <div class="input-wrap">
-                      <input type="number" inputmode="decimal" id="fuelValue" placeholder="0.00" aria-label="加油金额">
+                    <input type="number" inputmode="decimal" id="fuelValue" placeholder="0.00" aria-label="加油金额">
                     <span class="input-affix" id="fuelAffix">元</span>
                 </div>
                 <div class="quick-row" id="quickRow">
@@ -456,6 +457,7 @@ const dateBadge = document.getElementById('dateBadge');
 const dateText = dateBadge.querySelector('.date-text');
 let adjustSchedule = [];
 let selectedDate = null;
+const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 
         // ====================================================================
         // 油价数据来源：
@@ -474,8 +476,7 @@ let selectedDate = null;
         }
 
         function getWeekday(date) {
-            let weeks = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
-            return weeks[date.getDay()];
+            return WEEKDAYS[date.getDay()];
         }
 
         // apizero signals throttling with HTTP 429, and repeats the reason as
@@ -539,6 +540,16 @@ let selectedDate = null;
             }
 
             return attempt();
+        }
+
+        // apizero 限流为 1 req/s，并发请求容易触发 429。
+        // 用一条 promise 链把发往 apizero 的请求串行化：无论调用点何时发起，
+        // 都等上一个请求结束后才开始下一个（失败也不阻塞后续请求）。
+        let apizeroQueue = Promise.resolve();
+        function apizeroJSON(url) {
+            let run = function() { return fetchJSON(url); };
+            apizeroQueue = apizeroQueue.then(run, run);
+            return apizeroQueue;
         }
 
         // Parses an xxapi payload and paints today's row. Returns false if the
@@ -680,7 +691,7 @@ let selectedDate = null;
             let year = new Date().getFullYear();
             let priceTable = document.getElementById('priceTable');
 
-            return fetchJSON('https://v1.apizero.cn/api/oil-price-forecast?action=schedule&year=' + year)
+            return apizeroJSON('https://v1.apizero.cn/api/oil-price-forecast?action=schedule&year=' + year)
                 .then(function(sj) {
                     if (sj && sj.code === 0 && sj.data && sj.data.schedule) {
                         let shifted = sj.data.schedule.map(function(item) {
@@ -721,7 +732,7 @@ let selectedDate = null;
                     }
                 });
 
-            fetchJSON('https://v1.apizero.cn/api/oil-price-forecast?action=forecast&province=%E6%B9%96%E5%8D%97')
+            apizeroJSON('https://v1.apizero.cn/api/oil-price-forecast?action=forecast&province=%E6%B9%96%E5%8D%97')
                 .then(function(json) {
                     renderNextFromForecast(json);
                 })
@@ -918,31 +929,31 @@ let selectedDate = null;
             return new Date();
         }
 
-function renderCalendar() {
-             let today = getToday();
-             document.getElementById('calTitle').textContent = calYear + '年' + (calMonth + 1) + '月';
-             let first = new Date(calYear, calMonth, 1).getDay();
-             let total = new Date(calYear, calMonth + 1, 0).getDate();
-             let container = document.getElementById('calDays');
-             container.innerHTML = '';
-             for (let i = 0; i < first; i++) {
-                 let empty = document.createElement('span');
-                 empty.className = 'empty';
-                 container.appendChild(empty);
-             }
-             for (let d = 1; d <= total; d++) {
-                 let span = document.createElement('span');
-                 span.setAttribute('data-day', d);
-                 let cls = '';
-                 if (d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear()) cls += ' today';
-                 if (selectedDate && d === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear()) cls += ' selected';
-                 let thisYMD = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-                 if (adjustSchedule.indexOf(thisYMD) >= 0) cls += ' adjust';
-                 if (cls) span.className = cls.trim();
-                 span.textContent = d;
-                 container.appendChild(span);
-             }
-         }
+        function renderCalendar() {
+            let today = getToday();
+            document.getElementById('calTitle').textContent = calYear + '年' + (calMonth + 1) + '月';
+            let first = new Date(calYear, calMonth, 1).getDay();
+            let total = new Date(calYear, calMonth + 1, 0).getDate();
+            let container = document.getElementById('calDays');
+            container.innerHTML = '';
+            for (let i = 0; i < first; i++) {
+                let empty = document.createElement('span');
+                empty.className = 'empty';
+                container.appendChild(empty);
+            }
+            for (let d = 1; d <= total; d++) {
+                let span = document.createElement('span');
+                span.setAttribute('data-day', d);
+                let cls = '';
+                if (d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear()) cls += ' today';
+                if (selectedDate && d === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear()) cls += ' selected';
+                let thisYMD = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                if (adjustSchedule.indexOf(thisYMD) >= 0) cls += ' adjust';
+                if (cls) span.className = cls.trim();
+                span.textContent = d;
+                container.appendChild(span);
+            }
+        }
 
         function selectDate(day) {
             let d = new Date(calYear, calMonth, day);
@@ -994,6 +1005,10 @@ function renderCalendar() {
             window.open('https://www.baidu.com/s?wd=长沙95号汽油历史油价', '_blank');
         });
         document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') {
+                document.getElementById('calMask').classList.remove('show');
+                return;
+            }
             if (e.key === 'Enter' || e.key === ' ') {
                 let el = e.target;
                 if (el.classList.contains('clickable') || el.classList.contains('date-btn')) {
@@ -1002,10 +1017,26 @@ function renderCalendar() {
                 }
             }
         });
+        // 优先读取仓库根目录的 VERSION 文件，保证与发版号一致；
+        // 静态托管可能取不到（路径/离线），此时回退到哨兵值 V1.0.0 ——
+        // 页脚显示 V1.0.0 即代表读取失败，便于排查。
+        function loadVersion() {
+            let el = document.getElementById('versionDisplay');
+            let fallback = 'V1.0.0';
+            el.textContent = fallback;
+            return fetch('VERSION', { cache: 'no-store' })
+                .then(function(res) { return res.ok ? res.text() : null; })
+                .then(function(text) {
+                    let v = text ? text.trim() : '';
+                    if (v) el.textContent = 'V' + v;
+                })
+                .catch(function() { el.textContent = fallback; });
+        }
+
         updateTankCapacity();
         updateClearBtns();
         dateText.textContent = formatDate();
-        document.getElementById('versionDisplay').textContent = 'V1.26.0914';
+        loadVersion();
         loadAdjustSchedule();
         fetchOilPrice();
         setMode('amount');
@@ -1014,6 +1045,7 @@ function renderCalendar() {
             if (e.persisted) {
                 mode = 'amount';
                 tankCapacity = 68;
+                selectedDate = null;
                 tankInput.value = '68';
                 document.getElementById('fuelLabel').textContent = '加油金额';
                 document.getElementById('fuelAffix').textContent = '元';
@@ -1023,6 +1055,7 @@ function renderCalendar() {
                 document.getElementById('modePercent').classList.remove('active');
                 document.getElementById('quickRow').style.display = 'flex';
                 document.getElementById('percentRow').style.display = 'none';
+                dateText.textContent = formatDate();
                 resetGauge();
                 updateTankCapacity();
                 fetchOilPrice();
