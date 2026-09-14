@@ -247,7 +247,6 @@
         }
         .gauge-detail.show { display: block; }
         .price-date .future { color: #dc2626; font-size: 11px; font-weight: 500; }
-        .price-diff .detail { font-size: 11px; font-weight: 500; color: #64748b; }
         .gauge-detail .warning-text { color: #dc2626; font-weight: 600; }
 
         .history-btn {
@@ -307,7 +306,6 @@
         }
         .cal-days span.empty { cursor: default; }
         .cal-days span.today { background: #0d9488; color: #fff; font-weight: 700; }
-        .cal-days span.other { color: #cbd5e1; }
         .cal-days span.adjust { background: #f59e0b; color: #fff; font-weight: 700; padding: 4px 0; font-size: 12px; }
         .cal-days span.adjust::after { content: '调价'; display: block; font-size: 9px; font-weight: 500; opacity: 0.9; line-height: 1; margin-top: 1px; }
         .cal-days span.today.adjust { background: #f59e0b; }
@@ -375,14 +373,14 @@
                 <span class="price-label">今日&nbsp;</span>
                 <span class="price-date" id="priceDate"></span>
                 <span class="price-week" id="priceWeek"></span>
-                <span class="price-val" id="priceNow" role="button" tabindex="0" aria-label="今日油价">--</span>
+                <span class="price-val" id="priceNow" aria-label="今日油价">--</span>
                 <span class="price-diff clickable" id="priceNowDiff" role="button" tabindex="0" aria-label="今日油价涨跌幅"></span>
             </div>
             <div class="price-grid">
                 <span class="price-label">下轮</span>
                 <span class="price-date" id="nextDate">--</span>
                 <span class="price-week" id="nextWeek"></span>
-                <span class="price-val next" id="priceNext" role="button" tabindex="0" aria-label="下轮油价">--</span>
+                <span class="price-val" id="priceNext" aria-label="下轮油价">--</span>
                 <span class="price-diff clickable" id="priceDiff" role="button" tabindex="0" aria-label="下轮油价涨跌幅"></span>
             </div>
         </div>
@@ -447,7 +445,6 @@
     <script>
 let tankCapacity = 68;
 let mode = 'amount';
-const gaugeSection = document.getElementById('gaugeSection');
 const gaugePercent = document.getElementById('gaugePercent');
 const gaugeDetail = document.getElementById('gaugeDetail');
 const gaugeLiters = document.getElementById('gaugeLiters');
@@ -455,7 +452,7 @@ const tankInput = document.getElementById('tankCapacity');
 const gaugeUnit = document.querySelector('.gauge-unit');
 const dateBadge = document.getElementById('dateBadge');
 const dateText = dateBadge.querySelector('.date-text');
-let adjustSchedule = [];
+let adjustSchedule = new Set();
 let selectedDate = null;
 const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
 
@@ -677,11 +674,7 @@ const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四
             let priceNow = parseFloat(priceNowText);
             let priceNext = priceNow + change;
             priceEl.textContent = priceNext.toFixed(2);
-            diffEl.textContent = (change > 0 ? '+' : '') + change.toFixed(2) + ' ';
-            const detailSpan = document.createElement('span');
-            detailSpan.className = 'detail';
-            detailSpan.textContent = '详情';
-            diffEl.appendChild(detailSpan);
+            diffEl.textContent = (change > 0 ? '+' : '') + change.toFixed(2);
             diffEl.className = 'price-diff clickable' + (change > 0 ? ' up' : (change < 0 ? ' down' : ''));
         }
 
@@ -701,7 +694,7 @@ const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四
                                 String(d.getMonth() + 1).padStart(2, '0') + '-' +
                                 String(d.getDate()).padStart(2, '0');
                         });
-                        adjustSchedule = Array.from(new Set(adjustSchedule.concat(shifted)));
+                        shifted.forEach(function(d) { adjustSchedule.add(d); });
                         if (document.getElementById('calMask').classList.contains('show')) {
                             renderCalendar();
                         }
@@ -751,11 +744,6 @@ const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四
 
         function openDetail() {
             window.open('https://www.baidu.com/s?wd=下一轮国内成品油油价调整', '_blank');
-        }
-
-        function on(el, type, fn) {
-            if (!el) return;
-            el.addEventListener(type, fn, false);
         }
 
         function getMode() {
@@ -884,18 +872,18 @@ const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四
             gaugeDetail.classList.remove('show');
         }
 
-        on(document.getElementById('oilPrice'), 'input', handleInput);
-        on(document.getElementById('fuelValue'), 'input', handleInput);
-        on(tankInput, 'input', function() { updateTankCapacity(); handleInput(); });
+        document.getElementById('oilPrice').addEventListener('input', handleInput);
+        document.getElementById('fuelValue').addEventListener('input', handleInput);
+        tankInput.addEventListener('input', function() { updateTankCapacity(); handleInput(); });
 
         let allInputs = document.querySelectorAll('input[type="number"]');
         for (let i = 0; i < allInputs.length; i++) {
-            on(allInputs[i], 'focus', function() { this.select(); });
+            allInputs[i].addEventListener('focus', function() { this.select(); });
         }
 
         let quickBtns = document.querySelectorAll('.quick-btn[data-val]');
         for (let j = 0; j < quickBtns.length; j++) {
-            on(quickBtns[j], 'click', function() {
+            quickBtns[j].addEventListener('click', function() {
                 document.getElementById('fuelValue').value = this.getAttribute('data-val');
                 handleInput();
             });
@@ -903,26 +891,26 @@ const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四
 
         let percentBtns = document.querySelectorAll('.quick-btn[data-percent]');
         for (let k = 0; k < percentBtns.length; k++) {
-            on(percentBtns[k], 'click', function() {
+            percentBtns[k].addEventListener('click', function() {
                 document.getElementById('fuelValue').value = this.getAttribute('data-percent');
                 handleInput();
             });
         }
 
-        on(document.getElementById('clearOilPrice'), 'click', function() {
+        document.getElementById('clearOilPrice').addEventListener('click', function() {
             document.getElementById('oilPrice').value = '';
             handleInput();
         });
-        on(document.getElementById('clearFuelValue'), 'click', function() {
+        document.getElementById('clearFuelValue').addEventListener('click', function() {
             document.getElementById('fuelValue').value = '';
             handleInput();
         });
-        on(document.getElementById('usePriceBtn'), 'click', function() {
+        document.getElementById('usePriceBtn').addEventListener('click', function() {
             useNowPrice();
         });
-        on(dateBadge, 'click', function() { openCalendar(); });
-        on(document.getElementById('modeAmount'), 'click', function() { setMode('amount'); });
-        on(document.getElementById('modePercent'), 'click', function() { setMode('percent'); });
+        dateBadge.addEventListener('click', function() { openCalendar(); });
+        document.getElementById('modeAmount').addEventListener('click', function() { setMode('amount'); });
+        document.getElementById('modePercent').addEventListener('click', function() { setMode('percent'); });
 
         let calYear, calMonth;
         function getToday() {
@@ -948,7 +936,7 @@ const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四
                 if (d === today.getDate() && calMonth === today.getMonth() && calYear === today.getFullYear()) cls += ' today';
                 if (selectedDate && d === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear()) cls += ' selected';
                 let thisYMD = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-                if (adjustSchedule.indexOf(thisYMD) >= 0) cls += ' adjust';
+                if (adjustSchedule.has(thisYMD)) cls += ' adjust';
                 if (cls) span.className = cls.trim();
                 span.textContent = d;
                 container.appendChild(span);
@@ -976,32 +964,35 @@ const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四
             document.getElementById('calMask').classList.add('show');
         }
 
-        on(document.getElementById('calPrev'), 'click', function() {
+        document.getElementById('calPrev').addEventListener('click', function() {
             calMonth--;
             if (calMonth < 0) { calMonth = 11; calYear--; }
             renderCalendar();
         });
-        on(document.getElementById('calNext'), 'click', function() {
+        document.getElementById('calNext').addEventListener('click', function() {
             calMonth++;
             if (calMonth > 11) { calMonth = 0; calYear++; }
             renderCalendar();
         });
-        on(document.getElementById('calClose'), 'click', function() {
+        document.getElementById('calClose').addEventListener('click', function() {
             document.getElementById('calMask').classList.remove('show');
         });
-        on(document.getElementById('calToday'), 'click', function() {
+        document.getElementById('calToday').addEventListener('click', function() {
             calYear = getToday().getFullYear();
             calMonth = getToday().getMonth();
             renderCalendar();
         });
-        on(document.getElementById('calDays'), 'click', function(e) {
+        document.getElementById('calDays').addEventListener('click', function(e) {
             let span = e.target.closest('span[data-day]');
             if (span) selectDate(parseInt(span.getAttribute('data-day')));
         });
+        document.getElementById('calMask').addEventListener('click', function(e) {
+            if (e.target === this) document.getElementById('calMask').classList.remove('show');
+        });
 
-        on(document.getElementById('priceDiff'), 'click', openDetail);
-        on(document.getElementById('priceNowDiff'), 'click', openTodayDetail);
-        on(document.getElementById('historyBtn'), 'click', function() {
+        document.getElementById('priceDiff').addEventListener('click', openDetail);
+        document.getElementById('priceNowDiff').addEventListener('click', openTodayDetail);
+        document.getElementById('historyBtn').addEventListener('click', function() {
             window.open('https://www.baidu.com/s?wd=长沙95号汽油历史油价', '_blank');
         });
         document.addEventListener('keydown', function(e) {
@@ -1024,7 +1015,10 @@ const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四
             let el = document.getElementById('versionDisplay');
             let fallback = 'V1.0.0';
             el.textContent = fallback;
-            return fetch('VERSION', { cache: 'no-store' })
+
+            let path = new URL('VERSION', window.location.href).href;
+
+            fetch(path, { cache: 'no-store' })
                 .then(function(res) { return res.ok ? res.text() : null; })
                 .then(function(text) {
                     let v = text ? text.trim() : '';
@@ -1046,6 +1040,10 @@ const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四
                 mode = 'amount';
                 tankCapacity = 68;
                 selectedDate = null;
+                calYear = getToday().getFullYear();
+                calMonth = getToday().getMonth();
+                adjustSchedule = new Set();
+                apizeroQueue = Promise.resolve();
                 tankInput.value = '68';
                 document.getElementById('fuelLabel').textContent = '加油金额';
                 document.getElementById('fuelAffix').textContent = '元';
@@ -1056,8 +1054,10 @@ const WEEKDAYS = ['星期日', '星期一', '星期二', '星期三', '星期四
                 document.getElementById('quickRow').style.display = 'flex';
                 document.getElementById('percentRow').style.display = 'none';
                 dateText.textContent = formatDate();
+                loadVersion();
                 resetGauge();
                 updateTankCapacity();
+                loadAdjustSchedule();
                 fetchOilPrice();
             }
         });
