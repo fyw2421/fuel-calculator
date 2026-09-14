@@ -307,7 +307,8 @@
         .cal-days span.other { color: #cbd5e1; }
         .cal-days span.adjust { background: #f59e0b; color: #fff; font-weight: 700; padding: 4px 0; font-size: 12px; }
         .cal-days span.adjust::after { content: '调价'; display: block; font-size: 9px; font-weight: 500; opacity: 0.9; line-height: 1; margin-top: 1px; }
-        .cal-days span.today.adjust { background: #0d9488; padding: 4px 0; }
+        .cal-days span.today.adjust { background: #f59e0b; }
+        .cal-days span.today.adjust::after { content: '今日·调价'; }
         .cal-days span.selected { outline: 2px solid #0f172a; }
         .cal-close {
             flex: 1; margin-top: 12px; padding: 8px; border: none; border-radius: 8px;
@@ -348,12 +349,12 @@
                 <div class="logo-text">汽油百分比计算</div>
             </div>
             <div class="header-actions">
-                <div class="tank-edit">
+                <div class="tank-edit" id="tankEdit">
                     <span class="tank-icon">🛢</span>
-                    <input type="text" inputmode="decimal" id="tankCapacity" value="68" class="tank-input">
+                    <input type="number" inputmode="decimal" id="tankCapacity" value="68" class="tank-input" aria-label="油箱容量">
                     <span class="tank-unit">L</span>
                 </div>
-                <div class="date-btn" id="dateBadge">
+                <div class="date-btn" id="dateBadge" role="button" tabindex="0" aria-label="选择日期">
                     <span class="date-icon">📅</span>
                     <span class="date-text"></span>
                 </div>
@@ -361,52 +362,52 @@
         </div>
 
         <div class="mode-bar">
-            <button type="button" class="mode-btn active" id="modeAmount">输入金额 → 算百分比</button>
-            <button type="button" class="mode-btn" id="modePercent">输入百分比 → 算金额</button>
+            <button type="button" class="mode-btn active" id="modeAmount" aria-label="输入金额模式">输入金额 → 算百分比</button>
+            <button type="button" class="mode-btn" id="modePercent" aria-label="输入百分比模式">输入百分比 → 算金额</button>
         </div>
 
         <div class="price-table loading" id="priceTable">
-            <div class="price-table-title">长沙 · 95#汽油<button type="button" class="history-btn" id="historyBtn">历史</button></div>
+            <div class="price-table-title">长沙 · 95#汽油<button type="button" class="history-btn" id="historyBtn" aria-label="查看历史油价">历史</button></div>
             <div class="price-grid">
                 <span class="price-label">今日&nbsp;</span>
                 <span class="price-date" id="priceDate"></span>
                 <span class="price-week" id="priceWeek"></span>
-                <span class="price-val" id="priceNow">--</span>
-                <span class="price-diff" id="priceNowDiff"></span>
+                <span class="price-val" id="priceNow" role="button" tabindex="0" aria-label="今日油价">--</span>
+                <span class="price-diff clickable" id="priceNowDiff" role="button" tabindex="0" aria-label="今日油价涨跌幅"></span>
             </div>
             <div class="price-grid">
                 <span class="price-label">下轮</span>
                 <span class="price-date" id="nextDate">--</span>
                 <span class="price-week" id="nextWeek"></span>
-                <span class="price-val next" id="priceNext">--</span>
-                <span class="price-diff clickable" id="priceDiff"></span>
+                <span class="price-val next" id="priceNext" role="button" tabindex="0" aria-label="下轮油价">--</span>
+                <span class="price-diff clickable" id="priceDiff" role="button" tabindex="0" aria-label="下轮油价涨跌幅"></span>
             </div>
         </div>
 
         <div class="inputs">
             <div class="input-group">
-                <button type="button" class="clear-btn" id="clearOilPrice">×</button>
+                <button type="button" class="clear-btn" id="clearOilPrice" aria-label="清除油价">×</button>
                 <label class="input-label">油价</label>
                 <div class="input-wrap">
-                     <input type="text" inputmode="decimal" id="oilPrice" placeholder="0.00">
+                     <input type="number" inputmode="decimal" id="oilPrice" placeholder="0.00" aria-label="油价">
                     <span class="input-affix">元/升</span>
                 </div>
-                <button type="button" class="use-price-btn" id="usePriceBtn">当前油价</button>
+                <button type="button" class="use-price-btn" id="usePriceBtn" aria-label="使用当前油价">当前油价</button>
             </div>
             <div class="input-group">
-                <button type="button" class="clear-btn" id="clearFuelValue">×</button>
+                <button type="button" class="clear-btn" id="clearFuelValue" aria-label="清除加油金额">×</button>
                 <label class="input-label" id="fuelLabel">加油金额</label>
                 <div class="input-wrap">
-                     <input type="text" inputmode="decimal" id="fuelValue" placeholder="0.00">
+                     <input type="number" inputmode="decimal" id="fuelValue" placeholder="0.00" aria-label="加油金额">
                     <span class="input-affix" id="fuelAffix">元</span>
                 </div>
                 <div class="quick-row" id="quickRow">
-                    <button type="button" class="quick-btn" data-val="230">230元</button>
-                    <button type="button" class="quick-btn" data-val="360">360元</button>
+                    <button type="button" class="quick-btn" data-val="230" aria-label="230元">230元</button>
+                    <button type="button" class="quick-btn" data-val="360" aria-label="360元">360元</button>
                 </div>
                 <div class="quick-row percent-row" id="percentRow" style="display:none;">
-                    <button type="button" class="quick-btn" data-percent="40">40%</button>
-                    <button type="button" class="quick-btn" data-percent="60">60%</button>
+                    <button type="button" class="quick-btn" data-percent="40" aria-label="40%">40%</button>
+                    <button type="button" class="quick-btn" data-percent="60" aria-label="60%">60%</button>
                 </div>
             </div>
         </div>
@@ -425,34 +426,35 @@
     <div class="cal-mask" id="calMask">
         <div class="cal-box">
             <div class="cal-head">
-                <button type="button" class="cal-nav" id="calPrev">‹</button>
+                <button type="button" class="cal-nav" id="calPrev" aria-label="上一个月">‹</button>
                 <span class="cal-title" id="calTitle"></span>
-                <button type="button" class="cal-nav" id="calNext">›</button>
+                <button type="button" class="cal-nav" id="calNext" aria-label="下一个月">›</button>
             </div>
             <div class="cal-weeks">
                 <span>日</span><span>一</span><span>二</span><span>三</span><span>四</span><span>五</span><span>六</span>
             </div>
             <div class="cal-days" id="calDays"></div>
             <div class="cal-actions">
-                <button type="button" class="cal-today" id="calToday">今天</button>
-                <button type="button" class="cal-close" id="calClose">关闭</button>
+                <button type="button" class="cal-today" id="calToday" aria-label="今天">今天</button>
+                <button type="button" class="cal-close" id="calClose" aria-label="关闭日历">关闭</button>
             </div>
         </div>
     </div>
 
     <script>
-        var TANK_CAPACITY = 68;
-        var mode = 'amount';
-        var gaugeSection = document.getElementById('gaugeSection');
-        var gaugePercent = document.getElementById('gaugePercent');
-        var gaugeDetail = document.getElementById('gaugeDetail');
-        var gaugeLiters = document.getElementById('gaugeLiters');
-        var tankInput = document.getElementById('tankCapacity');
-        var gaugeUnit = document.querySelector('.gauge-unit');
-        var dateBadge = document.getElementById('dateBadge');
-        var dateText = dateBadge.querySelector('.date-text');
-        var adjustSchedule = [];
-        var selectedDate = null;
+const TANK_CAPACITY_DEFAULT = 68;
+let tankCapacity = 68;
+let mode = 'amount';
+const gaugeSection = document.getElementById('gaugeSection');
+const gaugePercent = document.getElementById('gaugePercent');
+const gaugeDetail = document.getElementById('gaugeDetail');
+const gaugeLiters = document.getElementById('gaugeLiters');
+const tankInput = document.getElementById('tankCapacity');
+const gaugeUnit = document.querySelector('.gauge-unit');
+const dateBadge = document.getElementById('dateBadge');
+const dateText = dateBadge.querySelector('.date-text');
+let adjustSchedule = [];
+let selectedDate = null;
 
         // ====================================================================
         // 油价数据来源：
@@ -464,14 +466,14 @@
         // ====================================================================
 
         function formatDate() {
-            var now = new Date();
-            var m = (now.getMonth() + 1);
-            var d = now.getDate();
+            let now = new Date();
+            let m = String(now.getMonth() + 1).padStart(2, '0');
+            let d = String(now.getDate()).padStart(2, '0');
             return m + '月' + d + '日';
         }
 
         function getWeekday(date) {
-            var weeks = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
+            let weeks = ['星期日', '星期一', '星期二', '星期三', '星期四', '星期五', '星期六'];
             return weeks[date.getDay()];
         }
 
@@ -491,16 +493,16 @@
         // Rate limiting is still retried -- apizero allows only 1 request/second,
         // which rapid refreshes or a shared NAT egress IP can exceed.
         function fetchJSON(url) {
-            var retryCount = 0;
-            var maxRetries = 3;
-            var baseDelay = 1000;
+            let retryCount = 0;
+            let maxRetries = 3;
+            let baseDelay = 1000;
 
             function retryLater(reason) {
                 if (retryCount >= maxRetries) {
                     throw new Error('throttled (' + reason + '), retries exhausted');
                 }
                 retryCount++;
-                var delay = baseDelay * Math.pow(2, retryCount - 1);
+                let delay = baseDelay * Math.pow(2, retryCount - 1);
                 console.warn('API throttled (' + reason + '), retry ' + retryCount + ' after ' + delay + 'ms');
                 return new Promise(function(resolve) {
                     setTimeout(function() {
@@ -533,16 +535,16 @@
             if (!json) return false;
             // Shape is {code: 200, data: [...provinces...]}. Tolerate a
             // nested data.data wrapper in case upstream changes.
-            var list = Array.isArray(json.data) ? json.data
+            let list = Array.isArray(json.data) ? json.data
                 : (json.data && Array.isArray(json.data.data) ? json.data.data : null);
-            var apiCode = typeof json.code === 'number' ? json.code : (json.data && json.data.code);
+            let apiCode = typeof json.code === 'number' ? json.code : (json.data && json.data.code);
             if (!list || apiCode !== 200) {
                 console.warn('油价接口返回结构异常:', json);
                 return false;
             }
-            var hunan = null;
-            for (var i = 0; i < list.length; i++) {
-                var name = list[i].regionName || list[i].province || list[i].name || '';
+            let hunan = null;
+            for (let i = 0; i < list.length; i++) {
+                let name = list[i].regionName || list[i].province || list[i].name || '';
                 if (name && name.indexOf('湖南') >= 0) {
                     hunan = list[i];
                     break;
@@ -553,19 +555,19 @@
                 return false;
             }
 
-            var p95 = parseFloat(hunan.n95);
+            let p95 = parseFloat(hunan.n95);
             if (!p95) return false;
-            var priceText = p95.toFixed(2);
+            let priceText = p95.toFixed(2);
 
             document.getElementById('oilPrice').value = priceText;
             document.getElementById('priceNow').textContent = priceText;
-            var now = new Date();
+            let now = new Date();
             document.getElementById('priceDate').textContent =
                 String(now.getMonth() + 1).padStart(2, '0') + '-' + String(now.getDate()).padStart(2, '0');
             document.getElementById('priceWeek').textContent = getWeekday(now);
 
-            var change = parseFloat(hunan.n95Change);
-            var diffEl = document.getElementById('priceNowDiff');
+            let change = parseFloat(hunan.n95Change);
+            let diffEl = document.getElementById('priceNowDiff');
             if (!isNaN(change)) {
                 diffEl.textContent = (change > 0 ? '+' : '') + change.toFixed(2);
                 diffEl.className = 'price-diff clickable' +
@@ -584,7 +586,7 @@
         }
 
         function parseYMD(str) {
-            var p = String(str).split('-');
+            let p = String(str).split('-');
             return new Date(parseInt(p[0], 10), parseInt(p[1], 10) - 1, parseInt(p[2], 10));
         }
 
@@ -594,16 +596,16 @@
 
         // 公告写的是「X 日 24 时起」，所以实际生效日是窗口日的次日。
         function effectiveDate(windowDay) {
-            var d = parseYMD(windowDay);
+            let d = parseYMD(windowDay);
             d.setDate(d.getDate() + 1);
             return d;
         }
 
         function renderNextFromForecast(json) {
-            var dateEl = document.getElementById('nextDate');
-            var weekEl = document.getElementById('nextWeek');
-            var priceEl = document.getElementById('priceNext');
-            var diffEl = document.getElementById('priceDiff');
+            let dateEl = document.getElementById('nextDate');
+            let weekEl = document.getElementById('nextWeek');
+            let priceEl = document.getElementById('priceNext');
+            let diffEl = document.getElementById('priceDiff');
             diffEl.className = 'price-diff clickable';
 
             if (!json || json.code !== 0 || !json.data) {
@@ -614,7 +616,7 @@
                 return;
             }
 
-            var d = json.data;
+            let d = json.data;
             if (!d.next_adjust_date) {
                 dateEl.textContent = '--';
                 weekEl.textContent = '';
@@ -623,48 +625,57 @@
                 return;
             }
 
-            var parts = d.next_adjust_date.split('-');
+            let parts = d.next_adjust_date.split('-');
             if (parts.length < 3) return;
-            var anchor = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
-            var eff = effectiveDate(d.next_adjust_date);
-            var curYear = new Date().getFullYear();
-            var fullDate = (eff.getFullYear() !== curYear ? eff.getFullYear() + '-' : '') + formatMD(eff);
-            dateEl.innerHTML = parts[1] + '-' + parts[2] + ' 24时<br><span style="color:#dc2626;">' + fullDate + '</span>';
+            let anchor = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
+            let eff = effectiveDate(d.next_adjust_date);
+            let curYear = new Date().getFullYear();
+            let fullDate = (eff.getFullYear() !== curYear ? eff.getFullYear() + '-' : '') + formatMD(eff);
+            dateEl.textContent = parts[1] + '-' + parts[2] + ' 24时 ';
+            const fullDateSpan = document.createElement('span');
+            fullDateSpan.style.color = '#dc2626';
+            fullDateSpan.textContent = fullDate;
+            dateEl.appendChild(fullDateSpan);
             weekEl.textContent = getWeekday(eff);
 
-            var priceNowText = document.getElementById('priceNow').textContent.trim();
+            let priceNowText = document.getElementById('priceNow').textContent.trim();
             if (!d.prediction || priceNowText === '--' || isNaN(parseFloat(priceNowText))) {
                 priceEl.textContent = '--';
                 diffEl.textContent = '待公布';
                 return;
             }
 
-            var change = d.prediction.estimated_change_per_liter;
+            let change = d.prediction.estimated_change_per_liter;
             if (change === null || isNaN(change)) {
                 priceEl.textContent = '--';
                 diffEl.textContent = '待公布';
                 return;
             }
 
-            var priceNow = parseFloat(priceNowText);
-            var priceNext = priceNow + change;
+            let priceNow = parseFloat(priceNowText);
+            let priceNext = priceNow + change;
             priceEl.textContent = priceNext.toFixed(2);
-            diffEl.innerHTML = (change > 0 ? '+' : '') + change.toFixed(2) +
-                ' <span style="font-size:11px;font-weight:500;color:#64748b;">详情</span>';
+            diffEl.textContent = (change > 0 ? '+' : '') + change.toFixed(2) + ' ';
+            const detailSpan = document.createElement('span');
+            detailSpan.style.fontSize = '11px';
+            detailSpan.style.fontWeight = '500';
+            detailSpan.style.color = '#64748b';
+            detailSpan.textContent = '详情';
+            diffEl.appendChild(detailSpan);
             diffEl.className = 'price-diff clickable' + (change > 0 ? ' up' : (change < 0 ? ' down' : ''));
         }
 
         // 调价日历的窗口日期取自 apizero 的 schedule 接口 —— 这部分它是准的，
         // 已与新浪财经 / 央视公布的 2026 全年窗口日历核对一致。
         function loadAdjustSchedule() {
-            var year = new Date().getFullYear();
-            var priceTable = document.getElementById('priceTable');
+            let year = new Date().getFullYear();
+            let priceTable = document.getElementById('priceTable');
 
             return fetchJSON('https://v1.apizero.cn/api/oil-price-forecast?action=schedule&year=' + year)
                 .then(function(sj) {
                     if (sj && sj.code === 0 && sj.data && sj.data.schedule) {
-                        var shifted = sj.data.schedule.map(function(item) {
-                            var d = parseYMD(item.date.split('T')[0]);
+                        let shifted = sj.data.schedule.map(function(item) {
+                            let d = parseYMD(item.date.split('T')[0]);
                             d.setDate(d.getDate() + 1);
                             return d.getFullYear() + '-' +
                                 String(d.getMonth() + 1).padStart(2, '0') + '-' +
@@ -693,8 +704,8 @@
                 })
                 .catch(function(err) {
                     console.error('今日油价获取失败:', err);
-                    var nowEl = document.getElementById('priceNow');
-                    var diffEl = document.getElementById('priceNowDiff');
+                    let nowEl = document.getElementById('priceNow');
+                    let diffEl = document.getElementById('priceNowDiff');
                     if (diffEl && nowEl && nowEl.textContent.trim() === '--') {
                         diffEl.textContent = '加载失败';
                         diffEl.className = 'price-diff clickable';
@@ -711,7 +722,7 @@
         }
 
         function useNowPrice() {
-            var price = document.getElementById('priceNow').textContent.trim();
+            let price = document.getElementById('priceNow').textContent.trim();
             if (price && price !== '--' && !isNaN(parseFloat(price))) {
                 document.getElementById('oilPrice').value = price;
                 handleInput();
@@ -733,13 +744,13 @@
 
         function setMode(newMode) {
             mode = newMode;
-            var label = document.getElementById('fuelLabel');
-            var affix = document.getElementById('fuelAffix');
-            var input = document.getElementById('fuelValue');
-            var btnAmount = document.getElementById('modeAmount');
-            var btnPercent = document.getElementById('modePercent');
-            var quickRow = document.getElementById('quickRow');
-            var percentRow = document.getElementById('percentRow');
+            const label = document.getElementById('fuelLabel');
+            const affix = document.getElementById('fuelAffix');
+            const input = document.getElementById('fuelValue');
+            const btnAmount = document.getElementById('modeAmount');
+            const btnPercent = document.getElementById('modePercent');
+            const quickRow = document.getElementById('quickRow');
+            const percentRow = document.getElementById('percentRow');
 
             if (newMode === 'percent') {
                 label.textContent = '加油百分比';
@@ -760,12 +771,11 @@
                 quickRow.style.display = 'flex';
                 percentRow.style.display = 'none';
             }
-            var ref = getRefPrice();
+            const ref = getRefPrice();
             if (ref && ref !== '--' && !isNaN(parseFloat(ref))) {
                 document.getElementById('oilPrice').value = ref;
             }
             resetGauge();
-            updateClearBtns();
         }
 
         function getRefPrice() {
@@ -773,9 +783,9 @@
         }
 
         function updateTankCapacity() {
-            var v = parseFloat(tankInput.value);
-            TANK_CAPACITY = (v && v > 0) ? v : 68;
-            gaugeUnit.textContent = 'of ' + TANK_CAPACITY + 'L tank';
+            let v = parseFloat(tankInput.value);
+            tankCapacity = (v && v > 0) ? v : 68;
+            gaugeUnit.textContent = 'of ' + tankCapacity + 'L tank';
         }
 
         function updateClearBtns() {
@@ -785,8 +795,8 @@
 
         function handleInput() {
             updateClearBtns();
-            var oilPrice = parseFloat(document.getElementById('oilPrice').value);
-            var fuelValue = parseFloat(document.getElementById('fuelValue').value);
+            let oilPrice = parseFloat(document.getElementById('oilPrice').value);
+            let fuelValue = parseFloat(document.getElementById('fuelValue').value);
 
             if (!oilPrice || oilPrice <= 0 || !fuelValue || fuelValue <= 0) {
                 gaugePercent.classList.remove('warning');
@@ -801,23 +811,23 @@
         }
 
         function calculate() {
-            var oilPrice = parseFloat(document.getElementById('oilPrice').value);
-            var fuelValue = parseFloat(document.getElementById('fuelValue').value);
+            let oilPrice = parseFloat(document.getElementById('oilPrice').value);
+            let fuelValue = parseFloat(document.getElementById('fuelValue').value);
 
-            var fuelLiters, percent, displayAmount;
-            var curMode = getMode();
+            let fuelLiters, percent, displayAmount;
+            const curMode = getMode();
 
             if (curMode === 'amount') {
                 fuelLiters = fuelValue / oilPrice;
-                percent = (fuelLiters / TANK_CAPACITY) * 100;
+                percent = (fuelLiters / tankCapacity) * 100;
                 displayAmount = fuelValue;
             } else {
                 percent = fuelValue;
-                fuelLiters = (percent / 100) * TANK_CAPACITY;
+                fuelLiters = (percent / 100) * tankCapacity;
                 displayAmount = fuelLiters * oilPrice;
             }
 
-            var isWarning = percent > 100;
+            let isWarning = percent > 100;
 
             gaugePercent.classList.remove('idle');
             gaugeLiters.textContent = fuelLiters.toFixed(2) + ' L';
@@ -825,16 +835,20 @@
             if (curMode === 'amount') {
                 gaugePercent.textContent = percent.toFixed(1) + '%';
                 gaugePercent.classList.remove('mode-percent');
-                gaugeDetail.innerHTML = '加油 <strong>' + fuelLiters.toFixed(2) + '</strong> 升 · ' + displayAmount.toFixed(2) + '元 ÷ ' + oilPrice.toFixed(2) + '元/升 · 油箱 ' + TANK_CAPACITY + 'L';
+                gaugeDetail.textContent = '加油 ' + fuelLiters.toFixed(2) + ' 升 · ' + displayAmount.toFixed(2) + '元 ÷ ' + oilPrice.toFixed(2) + '元/升 · 油箱 ' + tankCapacity + 'L';
             } else {
                 gaugePercent.textContent = '约 ' + displayAmount.toFixed(2) + ' 元';
                 gaugePercent.classList.add('mode-percent');
-                gaugeDetail.innerHTML = '加油 <strong>' + fuelLiters.toFixed(2) + '</strong> 升 · <strong>' + percent.toFixed(1) + '%</strong> · 油价 ' + oilPrice.toFixed(2) + '元/升 · 油箱 ' + TANK_CAPACITY + 'L';
+                gaugeDetail.textContent = '加油 ' + fuelLiters.toFixed(2) + ' 升 · ' + percent.toFixed(1) + '% · 油价 ' + oilPrice.toFixed(2) + '元/升 · 油箱 ' + tankCapacity + 'L';
             }
 
             if (isWarning) {
                 gaugePercent.classList.add('warning');
-                gaugeDetail.innerHTML += ' · <span style="color:#dc2626;font-weight:600">超过油箱容量</span>';
+                let warningEl = document.createElement('span');
+                warningEl.style.color = '#dc2626';
+                warningEl.style.fontWeight = '600';
+                warningEl.textContent = '超过油箱容量';
+                gaugeDetail.textContent += ' · ' + warningEl.textContent;
             } else {
                 gaugePercent.classList.remove('warning');
             }
@@ -855,21 +869,21 @@
         on(document.getElementById('fuelValue'), 'input', handleInput);
         on(tankInput, 'input', function() { updateTankCapacity(); handleInput(); });
 
-        var allInputs = document.querySelectorAll('input[type="text"]');
-        for (var i = 0; i < allInputs.length; i++) {
+        let allInputs = document.querySelectorAll('input[type="number"]');
+        for (let i = 0; i < allInputs.length; i++) {
             on(allInputs[i], 'focus', function() { this.select(); });
         }
 
-        var quickBtns = document.querySelectorAll('.quick-btn[data-val]');
-        for (var j = 0; j < quickBtns.length; j++) {
+        let quickBtns = document.querySelectorAll('.quick-btn[data-val]');
+        for (let j = 0; j < quickBtns.length; j++) {
             on(quickBtns[j], 'click', function() {
                 document.getElementById('fuelValue').value = this.getAttribute('data-val');
                 handleInput();
             });
         }
 
-        var percentBtns = document.querySelectorAll('.quick-btn[data-percent]');
-        for (var k = 0; k < percentBtns.length; k++) {
+        let percentBtns = document.querySelectorAll('.quick-btn[data-percent]');
+        for (let k = 0; k < percentBtns.length; k++) {
             on(percentBtns[k], 'click', function() {
                 document.getElementById('fuelValue').value = this.getAttribute('data-percent');
                 handleInput();
@@ -891,34 +905,41 @@
         on(document.getElementById('modeAmount'), 'click', function() { setMode('amount'); });
         on(document.getElementById('modePercent'), 'click', function() { setMode('percent'); });
 
-        var calYear, calMonth;
-        function todayDate() {
+        let calYear, calMonth;
+        function getToday() {
             return new Date();
         }
 
-        function renderCalendar() {
-            document.getElementById('calTitle').textContent = calYear + '年' + (calMonth + 1) + '月';
-            var first = new Date(calYear, calMonth, 1).getDay();
-            var total = new Date(calYear, calMonth + 1, 0).getDate();
-            var html = '';
-            for (var i = 0; i < first; i++) html += '<span class="empty"></span>';
-            for (var d = 1; d <= total; d++) {
-                var cls = '';
-                if (d === todayDate().getDate() && calMonth === todayDate().getMonth() && calYear === todayDate().getFullYear()) cls += ' today';
-                if (selectedDate && d === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear()) cls += ' selected';
-                var thisYMD = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
-                if (adjustSchedule.indexOf(thisYMD) >= 0) cls += ' adjust';
-                if (cls) cls = ' class="' + cls.trim() + '"';
-                html += '<span data-day="' + d + '"' + cls + '>' + d + '</span>';
-            }
-            document.getElementById('calDays').innerHTML = html;
-        }
+function renderCalendar() {
+             document.getElementById('calTitle').textContent = calYear + '年' + (calMonth + 1) + '月';
+             let first = new Date(calYear, calMonth, 1).getDay();
+             let total = new Date(calYear, calMonth + 1, 0).getDate();
+             let container = document.getElementById('calDays');
+             container.innerHTML = '';
+             for (let i = 0; i < first; i++) {
+                 let empty = document.createElement('span');
+                 empty.className = 'empty';
+                 container.appendChild(empty);
+             }
+             for (let d = 1; d <= total; d++) {
+                 let span = document.createElement('span');
+                 span.setAttribute('data-day', d);
+                 let cls = '';
+                 if (d === getToday().getDate() && calMonth === getToday().getMonth() && calYear === getToday().getFullYear()) cls += ' today';
+                 if (selectedDate && d === selectedDate.getDate() && calMonth === selectedDate.getMonth() && calYear === selectedDate.getFullYear()) cls += ' selected';
+                 let thisYMD = calYear + '-' + String(calMonth + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
+                 if (adjustSchedule.indexOf(thisYMD) >= 0) cls += ' adjust';
+                 if (cls) span.className = cls.trim();
+                 span.textContent = d;
+                 container.appendChild(span);
+             }
+         }
 
         function selectDate(day) {
-            var d = new Date(calYear, calMonth, day);
+            let d = new Date(calYear, calMonth, day);
             selectedDate = d;
-            var m = d.getMonth() + 1;
-            var dd = d.getDate();
+            let m = d.getMonth() + 1;
+            let dd = d.getDate();
             dateText.textContent = m + '月' + dd + '日';
             document.getElementById('calMask').classList.remove('show');
         }
@@ -928,8 +949,8 @@
                 calYear = selectedDate.getFullYear();
                 calMonth = selectedDate.getMonth();
             } else {
-                calYear = todayDate().getFullYear();
-                calMonth = todayDate().getMonth();
+                calYear = getToday().getFullYear();
+                calMonth = getToday().getMonth();
             }
             renderCalendar();
             document.getElementById('calMask').classList.add('show');
@@ -949,12 +970,12 @@
             document.getElementById('calMask').classList.remove('show');
         });
         on(document.getElementById('calToday'), 'click', function() {
-            calYear = todayDate().getFullYear();
-            calMonth = todayDate().getMonth();
+            calYear = getToday().getFullYear();
+            calMonth = getToday().getMonth();
             renderCalendar();
         });
         on(document.getElementById('calDays'), 'click', function(e) {
-            var span = e.target.closest('span[data-day]');
+            let span = e.target.closest('span[data-day]');
             if (span) selectDate(parseInt(span.getAttribute('data-day')));
         });
 
@@ -962,6 +983,15 @@
         on(document.getElementById('priceNowDiff'), 'click', openTodayDetail);
         on(document.getElementById('historyBtn'), 'click', function() {
             window.open('https://www.baidu.com/s?wd=长沙95号汽油历史油价', '_blank');
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter' || e.key === ' ') {
+                let el = e.target;
+                if (el.classList.contains('clickable') || el.classList.contains('date-btn')) {
+                    e.preventDefault();
+                    el.click();
+                }
+            }
         });
         updateTankCapacity();
         updateClearBtns();
@@ -974,6 +1004,8 @@
         window.addEventListener('pageshow', function(e) {
             if (e.persisted) {
                 mode = 'amount';
+                tankCapacity = 68;
+                tankInput.value = '68';
                 document.getElementById('fuelLabel').textContent = '加油金额';
                 document.getElementById('fuelAffix').textContent = '元';
                 document.getElementById('fuelValue').placeholder = '0.00';
@@ -983,6 +1015,7 @@
                 document.getElementById('quickRow').style.display = 'flex';
                 document.getElementById('percentRow').style.display = 'none';
                 resetGauge();
+                updateTankCapacity();
             }
         });
     </script>
