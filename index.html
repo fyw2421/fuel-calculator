@@ -516,19 +516,25 @@ let selectedDate = null;
             function attempt() {
                 let controller = new AbortController();
                 let timeoutId = setTimeout(function() { controller.abort(); }, timeoutMs);
-                return fetch(url, { cache: 'no-store', signal: controller.signal }).then(function(res) {
+                let response;
+                try {
+                    response = fetch(url, { cache: 'no-store', signal: controller.signal });
+                } catch (err) {
                     clearTimeout(timeoutId);
+                    if (retryCount < maxRetries) return retryLater('network');
+                    throw err;
+                }
+                return response.then(function(res) {
                     if (res.status === 429) return retryLater('HTTP 429');
                     return res.json().then(function(json) {
                         if (isThrottled(json)) return retryLater('code ' + json.code);
                         return json;
                     });
                 }).catch(function(err) {
-                    clearTimeout(timeoutId);
-                    if (retryCount < maxRetries) {
-                        return retryLater('network');
-                    }
+                    if (retryCount < maxRetries) return retryLater('network');
                     throw err;
+                }).finally(function() {
+                    clearTimeout(timeoutId);
                 });
             }
 
@@ -633,7 +639,6 @@ let selectedDate = null;
 
             let parts = d.next_adjust_date.split('-');
             if (parts.length < 3) return;
-            let anchor = new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10));
             let eff = effectiveDate(d.next_adjust_date);
             let curYear = new Date().getFullYear();
             let fullDate = (eff.getFullYear() !== curYear ? eff.getFullYear() + '-' : '') + formatMD(eff);
